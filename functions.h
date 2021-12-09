@@ -177,6 +177,20 @@ int ReadADC(){
     return result;
 }
 
+    
+// Digital-to-analog converter 8-bit (DAC1, connected to AN2 pin)
+//
+// Enable with DAC1EN bit of DAC1CON0 register
+// Voltage set with DAC1R<7:0> bits of DAC1CON1 register
+//      Vout = [ (Vsrc+ - Vsrc-) * DAC1R/2^8 ] + Vsrc-
+// Output enabled by DAC1OE1 bit of DAC1CON0 register
+// DAC1PSS<1:0> selects Vsrc+
+//    10 = FVR buffer 2, 01 = Vref+ ext pin, 00 = Vdd
+// DAC1NSS selects Vsrc-
+//    1 = Vref- pin, 0 = Vss
+
+
+
 #ifdef	__cplusplus
 }
 #endif
