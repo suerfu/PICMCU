@@ -177,7 +177,7 @@ unsigned int ReadADC(){
         // wait for conversion to be done
     int result = ADRESH;
     result = (result << 4);
-    result += (ADRESL << 4);
+    result += (ADRESL >> 4);
         // Currently not possible to have negative values
     return result;
 }
