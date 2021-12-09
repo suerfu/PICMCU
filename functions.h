@@ -99,9 +99,18 @@ int getche(void){
 //    enable by setting FVREN bit of FVRCON
 //    FVRRDY bit of FVRCON to check if stablized
 //    ADFVR<1:0> used to set gain when it is routed to ADC pins, 11 is x4, 10 is x2
-
+//    CDAFVR<1:0> used to set gain when it is routed to DAC pins, 11 is x4, 10 is x2
+//
+void ConfigFVR(){
+    FVRCONbits.FVREN = 1;
+    FVRCONbits.CDAFVR = 0b11;
+        // x4 amplification
+    while( FVRCONbits.FVRRDY!=1 ){;}
+}
+    
 // Analog-to-Digital converter
 // 
+// Enable by ADON bit of ADCON0.
 // Port configuration: TRIS must set to high, and ANSEL selected.
 // Channel selection:
 //    CHS<4:0> of ADCON0 determines which positive input channel.
@@ -116,11 +125,57 @@ int getche(void){
 //    ADCS of ADCON1, it can be Fosc/2 ... Focs/64, note some values are not recommended.
 //    When 32 MHz clock is used, Fosc/32 (010) and Fosc/64 (110) are recommended
 // Result formatting:
-//    ADFM of ADCON1, sign and magnitude (xxx 0000 sign) vs 2's compliment (use MSB to fill left)
+//    ADFM of ADCON1, sign and magnitude (0, lsb is sign, use 0 to fill right) vs 2's compliment (1, use MSB to fill left)
 //    ADRMD of ADCON0 10-bit or 12-bit (0 for 12-bit)
 // Start by writing 1 to GO bit of ADCON0. When conversion is finished, the GO bit will be cleared.
-// Result accessed in ADRESH and ADRESL   
+// Result accessed in ADRESH and ADRESL
+// 
+void ConfigADC(){
+    
+    // port configuration
+    TRISA |= 0x0f;
+    ANSELA |= 0x0f;
+    
+    // voltage references
+    ADCON1bits.ADPREF = 0b11;       // use FVR as input reference
+    ADCON1bits.ADNREF = 0;          // use ground as negative reference
+    
+    // clock
+    ADCON1bits.ADCS = 0b110;            // Clock = Fosc/64
+    
+    // result formatting
+    ADCON0bits.ADRMD = 0;           // 12-bit resolution
+    ADCON1bits.ADFM = 0;            // sign and magnitude
+    
+    // enable ADC
+    ADCON0bits.ADON = 1;
+}
 
+void ConfigADCChannel( char chan){
+    if( chan>3 ){
+        return;
+    }
+    else{
+        // If current channel is not the specified channel
+        // set the channel (A0--A3) and throw away 1 conversion to stabilize (meet acquisition time requirement)
+        if( ADCON0bits.CHS != (chan & 0x1f) ){
+            ADCON0bits.CHS = (chan & 0x1f);
+            ReadADC();
+        }
+    }
+}
+
+int ReadADC(){
+    ADCON0bits.GO = 1;
+        // start ADC
+    while( ADCON0bits.GO == 1 ){;}
+        // wait for conversion to be done
+    int result = ADRESH;
+    result = (result << 4);
+    result += (ADRESL << 4);
+        // Currently not possible to have negative values
+    return result;
+}
 
 #ifdef	__cplusplus
 }
