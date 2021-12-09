@@ -151,6 +151,8 @@ void ConfigADC(){
     ADCON0bits.ADON = 1;
 }
 
+unsigned int ReadADC();
+    
 void ConfigADCChannel( char chan){
     if( chan>3 ){
         return;
@@ -162,10 +164,13 @@ void ConfigADCChannel( char chan){
             ADCON0bits.CHS = (chan & 0x1f);
             ReadADC();
         }
+        // Set the negative input as part of differential inputs.
+        ADCON2bits.CHSN = 0b1111;   // minus input is negative reference, effectively single ended.
+
     }
 }
 
-int ReadADC(){
+unsigned int ReadADC(){
     ADCON0bits.GO = 1;
         // start ADC
     while( ADCON0bits.GO == 1 ){;}
