@@ -26,11 +26,17 @@ void ConfigPort(){
 // Oscillator module / Clock
 // Eight modes: external lo/med/high, crystal lo/med/high, ext RC, internal
 // For internal clock sources:
-//  SCS (system clock select) in OSCCON controlls clock source, and internal oscillator frequency select bits IRCF<3:0>
-//    SCS<1:0>: 1x = internal    
+//    SCS (system clock select) in OSCCON controlls clock source, and internal oscillator frequency select bits IRCF<3:0>
+//    SCS<1:0>: 1x = internal oscillator block
+//              01 = Timer1 oscillator
+//              00 = system clock of Fosc<2:0> in configuration word
+//              Note: when using other frequencies in HF, MF and LF, it should be in 1x.
+//                    only 32 MHz should use 00
 //    IRCF<3:0>: 1111 = 16 / 32 MHz, depending on PLL
 //               1110 = 8 or 32 MHz
-//  To enable 4xPLL, set PLLEN in config word to be true, and set SPLLEN bit in OSCCON register to be true.  
+//    To enable 4xPLL, set PLLEN in config word to be true, and set SPLLEN bit in OSCCON register to be true.  
+//
+//    Note: which clock to use is determined by the FOSC bits.
 //    
 void ConfigClock(){
     
@@ -151,9 +157,8 @@ void ConfigADC(){
     ADCON0bits.ADON = 1;
 }
 
-unsigned int ReadADC();
     
-void ConfigADCChannel( char chan){
+void ConfigADCChannel( char chan ){
     if( chan>3 ){
         return;
     }
@@ -170,6 +175,7 @@ void ConfigADCChannel( char chan){
     }
 }
 
+    
 unsigned int ReadADC(){
     ADCON0bits.GO = 1;
         // start ADC
@@ -182,7 +188,7 @@ unsigned int ReadADC(){
     return result;
 }
 
-    
+
 // Digital-to-analog converter 8-bit (DAC1, connected to AN2 pin)
 //
 // Enable with DAC1EN bit of DAC1CON0 register
