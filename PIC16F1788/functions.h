@@ -293,6 +293,29 @@ void ConfigPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
     TRISC = 0;
 }
 
+
+//  Below is a shorter version of the config function
+//  This function changes only period and duty cycle
+//  It assumes other attributes (port, event source, clk, etc.) have already been configured and need not change.
+//
+void SetPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
+    // Set period
+    PSMC1PRH = PRH;
+    PSMC1PRL = PRL;
+    // Duty cycle
+    PSMC1DCH = DCH;
+    PSMC1DCL = DCL;//0xff;
+    // Phase/start of active pulse
+    PSMC1PHH = PHH;
+    PSMC1PHL = PHL;
+    // Load the values
+    PSMC1CON = 0b11000000;
+}
+
+
+
+    
+
 #ifdef	__cplusplus
 }
 #endif
