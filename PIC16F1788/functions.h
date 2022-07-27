@@ -201,7 +201,42 @@ unsigned int ReadADC(){
 //    1 = Vref- pin, 0 = Vss
 
 
-
+// Pulse-width Modulation
+//
+// Procedure:
+//      disable the output
+//      set period through timer2
+//      set the mode and pulse width
+//      enable digital drive.
+//  
+// Note: seems all the steps need to be followed to change PWM waveform
+//
+void ConfigPWM( char high, char low, char period, char prescalar ){
+    
+    // First disable the output
+    TRISCbits.TRISC2 = 1;
+    
+    // Configure timer2 which sets the period
+    // Period = (PR2+1) * 4 * (1/Fosc) * TMR2_PreScalarValue
+    PR2 = period;
+    T2CONbits.T2CKPS = prescalar;
+    T2CONbits.TMR2ON = 1;
+    
+    // Set the resolution
+    // PW = CCPRxL:CCPCON<5:4> * Tosc * TMR2_PreScalarValue
+    CCP1CONbits.CCP1M = 0xff;
+        // 11xx is PWM mode
+        // other configs are compare, compare-auto-ADC, capture on every n-th edge.
+    
+    // 
+    CCP1CONbits.DC1B = low;
+        // least significant two bits for PWM pulse width
+    CCPR1L = high;
+        // most significant 8 bits of the 10-bit words.
+    
+    // Enable the drive
+    TRISCbits.TRISC2 = 0;
+}
 #ifdef	__cplusplus
 }
 #endif
