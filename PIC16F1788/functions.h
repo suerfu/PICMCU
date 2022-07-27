@@ -224,7 +224,7 @@ void ConfigPWM( char high, char low, char period, char prescalar ){
     
     // Set the resolution
     // PW = CCPRxL:CCPCON<5:4> * Tosc * TMR2_PreScalarValue
-    CCP1CONbits.CCP1M = 0xff;
+    CCP1CONbits.CCP1M = 0xf;
         // 11xx is PWM mode
         // other configs are compare, compare-auto-ADC, capture on every n-th edge.
     
