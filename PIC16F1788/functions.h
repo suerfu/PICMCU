@@ -237,6 +237,62 @@ void ConfigPWM( char high, char low, char period, char prescalar ){
     // Enable the drive
     TRISCbits.TRISC2 = 0;
 }
+
+
+// PSMC 
+// Higher performance & resolution PWM module.
+// Multiple modules (index n)
+// Each module can have multiple outputs A--F, which can be a single replica of the waveform or more complex patterns.
+//
+// Procedure:
+//      set period, duty cycle and phase (start of active pulse)
+//      set PSMC clock source
+//      set output port and polarity, enable output
+//          each port A--F can be configured here
+//      source for event (what causes start of a new period and begin and end of an active pulse)
+//      load the LD bit to push the register values through the buffer and enable digital drive
+//    
+void ConfigPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
+
+    // Set period
+    PSMC1PRH = PRH;
+    PSMC1PRL = PRL;
+
+    // Duty cycle
+    PSMC1DCH = DCH;
+    PSMC1DCL = DCL;//0xff;
+
+    // Phase/start of active pulse
+    PSMC1PHH = PHH;
+    PSMC1PHL = PHL;
+    
+    // Set PSMC clock
+    PSMC1CLK = 0x00;
+        // clock source: 0x?0 => Fosc, 0x?1 => 64 MHz internal, 0x?2 => external
+        // pre-scalar:  0x0? => f/1, 0x1? => f/2, 0x2? => f/4, 0x3? => f/8
+    
+    // Output port, polarity and enable output
+    PSMC1STR0 = 0xff;
+        // output the waveform on all the pins A-F
+    //PSMC1STR1bits.P1SSYNC = 0x0;
+        // sync output immediately
+        
+    PSMC1POLbits.P1POLA = 0;    // 0 for active high
+    PSMC1OENbits.P1OEA = 1;    // output enable bit
+    
+    // Set source of event for period, phase and duty cycle counter
+    PSMC1PRS = 0x1;
+    PSMC1PHS = 0x1;
+    PSMC1DCS = 0x1;
+        // LSB = 1 for enabling synchronous event triggered by a match with TMR, disabling all other modes.
+    
+    // enable steering and load the values, and enable digital driver
+    PSMC1CON = 0b11000000;
+        // bit7 is enable bit, bit6 is Load, need to clear to enable
+        // bit0-3 set to 0 for single PWM output
+    TRISC = 0;
+}
+
 #ifdef	__cplusplus
 }
 #endif
