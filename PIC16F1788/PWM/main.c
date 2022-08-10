@@ -31,55 +31,37 @@
 int main(int argc, char** argv) {
     
     ConfigPort();
-    //ConfigUSART();
-    
-    //ConfigPWM( 0x00, 0x0, 0xff, 4);
-    //ConfigPSMC1();
+    ConfigClock();
+    ConfigUSART();
     
     char PRH = 0x0f;
     char PRL = 0xff;
+        // period high and low
+    char DCH = 0x0;
+    char DCL = 0x0;
+        // duty cycle high and low
     
-    char c = 0xff;
-    char d = 0xff;
-    char dir = 0;
-    char inc = 0x0f;
-    PORTCbits.RC4 = 0;
-    ConfigPSMC1( PRH, PRL, c, d, 0, 0);
+    ConfigPSMC1( PRH, PRL, DCH, DCL, 0, 0);
+    
+    char command[8];
+        // used to obtain command from user
 
     while(1){
         
-        //ConfigPWM( c, 0x0, 0xff, 4);
-        SetPSMC1( PRH, PRL, c, d, 0, 0);
+        printf("Welcome!\n\r");
+
+        scanf( "%s", command );
+        if( strncmp(command, "!pr", 2)==0 ){
+            scanf( "%d %d", &PRH, &PRL );
+            printf("Changing period to %x %x\n\r", PRH, PRL);
+        }
+        else if( strncmp(command, "!dc", 2)==0 ){
+            scanf( "%d %d", &DCH, &DCL );
+            printf("Changing duty cycle to %x %x\n\r", DCH, DCL);
+        }
         
-        //for( int i=0; i<0x30; i++){
-        //    for( int j=0; j<0xf; j++){}
-        //}
+        SetPSMC1( PRH, PRL, DCH, DCL, 0, 0);
         
-        if( dir!=0 ){
-            if( d==0xff ){
-                d = 0;
-                c += 1;
-            }
-            else{
-                d += inc;
-            }
-        }
-        else{
-            if( d==0 ){
-                d = 0xff;
-                c -= 1;
-            }
-            else{
-                d -= inc;
-            }
-        }
-        if( c>=PRH && d>=PRL ){
-            dir = 0;
-        }
-        if( c==0x0 && d==0x0 ){
-            dir = 1;
-        }
-        PORTCbits.RC4 = dir;
     }
 
     return 0;
