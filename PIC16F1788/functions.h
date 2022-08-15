@@ -70,6 +70,9 @@ void ConfigClock(){
 //    
 void ConfigUSART(){
     
+    PORTC |= 0xc0;
+        // added to fix the issue of USB bridge cannot pull RX pin of the MCU completely high.
+        // note: this could be a hardware bug.
     TRISCbits.TRISC7 = 1;  // pin 7 for input
     TRISCbits.TRISC6 = 0;   // pin 6 for output
     ANSELCbits.ANSC7 = 0;
