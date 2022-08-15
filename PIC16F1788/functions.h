@@ -54,7 +54,7 @@ void ConfigClock(){
 // Baud rate control (BAUDCON): SYNC, BRGH, BRG16, SPBRGH-SPGRGL controls the baud rate.
     
 // Transmit status and control (TXSTA)
-//      TXEN = 1, SYNC = 0 (asynchronous), SPEN (of RCSTA) = 1 (enables EUSART and configures TX pin)
+//      TXEN = 1, SYNC = 0 (asynchronous), SPEN (serial port enable, in RCSTA) = 1 (enables EUSART and configures TX pin)
 //      * analog function must be disabled.
 //    Data transmission by writing TXREG register.
 //    Polarity: SCKP bit of BAUDCON: 0 => high true idle
@@ -76,7 +76,7 @@ void ConfigUSART(){
     ANSELCbits.ANSC6 = 0;
     
     TXSTA = 0x24; // 2 for TXEN, 4 for BRGH (high baud rate)
-    RCSTA |= 0x90; // 9 for SPEN and CREN
+    RCSTA |= 0x90; // 9 for SPEN and CREN (receiver enable)
     
     // Set baud rate for 9600 by default
     BAUDCON = 0x08; // use 16-bit baud rate generator
