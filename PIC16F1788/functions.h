@@ -301,6 +301,7 @@ void ConfigPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
     // Output port, polarity and enable output
     PSMC1STR0 = 0xff;
         // output the waveform on all the pins A-F
+        // this register controls what each of pins A-F are doing (single PWM, complementary, etc.)
     //PSMC1STR1bits.P1SSYNC = 0x0;
         // sync output immediately
         
@@ -317,7 +318,7 @@ void ConfigPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
     PSMC1CON = 0b11000000;
         // bit7 is enable bit, bit6 is Load, need to clear to enable
         // bit0-3 set to 0 for single PWM output
-    TRISCbits.RC0 = 0;
+    TRISCbits.TRISC0 = 0;
         // previously, setting the entire TRISC = 0 was affecting the operation of UART
         // this should be changed based on which output is used.
 }
