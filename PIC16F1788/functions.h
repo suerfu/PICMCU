@@ -149,6 +149,11 @@ void ConfigADC(){
     ADCON1bits.ADPREF = 0b11;       // use FVR as input reference
     ADCON1bits.ADNREF = 0;          // use ground as negative reference
     
+    // Positive and negative references
+    // Should be changed based on applications.
+    ADCON0bits.CHS = 1;
+    ADCON2bits.CHSN = 0b1111;
+    
     // clock
     ADCON1bits.ADCS = 0b010;        // Clock = Fosc/32, fastest recommended clock
     
@@ -161,6 +166,7 @@ void ConfigADC(){
 }
 
     
+/*
 void ConfigADCChannel( char chan ){
     if( chan>3 ){
         return;
@@ -177,18 +183,36 @@ void ConfigADCChannel( char chan ){
 
     }
 }
+*/
 
+    
+// ADC result is accessed as bytes but full resolution is more than a byte.
+// This is a trick to access two bytes as a 16-bit unsigned integer
+
+struct twobytes{
+    unsigned char lsb;
+    unsigned char msb;
+};
+    
+union word{
+    struct twobytes bytes;
+    unsigned int val;
+};
+
+// Read the conversion result
+// Note: if channel is changed, enough time should be allowed for voltages to stabilize
+//      A convenient way is to do a readout and throw it away.
     
 unsigned int ReadADC(){
     ADCON0bits.GO = 1;
-        // start ADC
+        // start ADC    
+    union word vol;
+        // value to be filled and returned
     while( ADCON0bits.GO == 1 ){;}
         // wait for conversion to be done
-    int result = ADRESH;
-    result = (result << 4);
-    result += (ADRESL >> 4);
-        // Currently not possible to have negative values
-    return result;
+    vol.bytes.msb = ADRESH;
+    vol.bytes.lsb = ADRESL;
+    return vol.val;
 }
 
 
