@@ -42,12 +42,6 @@ int main(int argc, char** argv) {
     
     union word duty_cycle;
     duty_cycle.val = 10;
-    //char PRH = 0x0f;
-    //char PRL = 0xff;
-        // period high and low
-    //char DCH = 0x0;
-    //char DCL = 0x0;
-        // duty cycle high and low
     
     ConfigPSMC1( period.bytes.msb, period.bytes.lsb, duty_cycle.bytes.msb, duty_cycle.bytes.lsb, 0, 0 );
     
@@ -63,12 +57,10 @@ int main(int argc, char** argv) {
         if( strncmp(command, "!pr", 3)==0 ){
             scanf( "%u", &period.val );
             SetPSMC1( period.bytes.msb, period.bytes.lsb, duty_cycle.bytes.msb, duty_cycle.bytes.lsb, 0, 0);
-            //printf("Changing period to %x %x\n\r", PRH, PRL);
         }
         else if( strncmp(command, "!dc", 3)==0 ){
             scanf( "%u", &duty_cycle.val );
             SetPSMC1( period.bytes.msb, period.bytes.lsb, duty_cycle.bytes.msb, duty_cycle.bytes.lsb, 0, 0);
-            //printf("Changing duty cycle to %x %x\n\r", DCH, DCL);
         }
         else if( strncmp(command, "?pr", 3)==0 ){
             printf("%u\n\r", period.val );
