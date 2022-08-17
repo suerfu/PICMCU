@@ -112,8 +112,10 @@ int getche(void){
 //
 void ConfigFVR(){
     FVRCONbits.FVREN = 1;
+    FVRCONbits.ADFVR = 0b11;
+        // x4 amplification for ADC
     FVRCONbits.CDAFVR = 0b11;
-        // x4 amplification
+        // x4 amplification for DAC/compare
     while( FVRCONbits.FVRRDY!=1 ){;}
 }
     
@@ -150,7 +152,7 @@ void ConfigADC(){
     ADCON1bits.ADNREF = 0;          // use ground as negative reference
     
     // clock
-    ADCON1bits.ADCS = 0b110;            // Clock = Fosc/64
+    ADCON1bits.ADCS = 0b010;        // Clock = Fosc/32, fastest recommended clock
     
     // result formatting
     ADCON0bits.ADRMD = 0;           // 12-bit resolution
