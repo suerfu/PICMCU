@@ -70,9 +70,6 @@ void ConfigClock(){
 //    
 void ConfigUSART(){
     
-    PORTC |= 0xc0;
-        // added to fix the issue of USB bridge cannot pull RX pin of the MCU completely high.
-        // note: this could be a hardware bug.
     TRISCbits.TRISC7 = 1;  // pin 7 for input
     TRISCbits.TRISC6 = 0;   // pin 6 for output
     ANSELCbits.ANSC7 = 0;
@@ -118,7 +115,8 @@ void ConfigFVR(){
         // x4 amplification for DAC/compare
     while( FVRCONbits.FVRRDY!=1 ){;}
 }
-    
+
+
 // Analog-to-Digital converter
 // 
 // Enable by ADON bit of ADCON0.
@@ -295,7 +293,9 @@ void ConfigPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
     PSMC1CON = 0b11000000;
         // bit7 is enable bit, bit6 is Load, need to clear to enable
         // bit0-3 set to 0 for single PWM output
-    TRISC = 0;
+    TRISCbits.RC0 = 0;
+        // previously, setting the entire TRISC = 0 was affecting the operation of UART
+        // this should be changed based on which output is used.
 }
 
 
