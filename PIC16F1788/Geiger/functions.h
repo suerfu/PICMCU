@@ -19,12 +19,34 @@ struct twobytes{
 
 union word{
     struct twobytes bytes;
-    unsigned int val;
+    int val;
 };
-    
+
+unsigned int milisecond = 0;
+unsigned int second = 0;
+unsigned int minutes = 0;
+
+unsigned int radiationCounter = 0;
+
+const char buzzDuration = 1;
+char buzzCounter = 0;
+
+void BuzzOnOff( char a ){
+    PORTAbits.RA4 = a;
+        // TTL output to drive LED/Buzzer
+}
+
+char GetBuzzStatus(){
+    return PORTAbits.RA4;
+        // TTL output to drive LED/Buzzer
+}
+
+
 void ConfigPort(){
-    TRISA = TRISB = TRISC = 0x0;
-    ANSELA = ANSELB = ANSELC = 0x0;
+    TRISA = 0xf;
+    ANSELA = 0x3;
+    TRISB = TRISC = 0x0;
+    ANSELB = ANSELC = 0x0;
     PORTA = PORTB = PORTC = 0x0;
 }
 
@@ -65,6 +87,30 @@ int getche(void){
     return c;
 }
 
+
+void ConfigTimer1(){
+    T1CONbits.TMR1CS = 0x0;
+        // clock source is instruction clock Fosc/4
+    T1CONbits.T1CKPS = 0x3;
+        //Fosc = 32 MHz. Timer clock is Focs/4, another pre-scaler by 8 to obtain 1 MHz timer.
+    T1GCONbits.TMR1GE = 0;
+    T1CONbits.TMR1ON = 1;
+}
+
+
+void Timer1On(){
+    T1CONbits.TMR1ON = 1;
+}
+
+
+void ConfigCCP1(){
+    CCP1CONbits.CCP1M = 0xb;     // compare with software interrupt
+    CCPR1H = 1000 / 256;
+    CCPR1L = 1000 % 256;
+        // calling the interrupt handler every 10000 clock ticks, that is 20Hz frequency.
+}
+
+
 void ConfigPWM( char high, char low, char period, char prescalar ){
     // First disable the output
     TRISCbits.TRISC2 = 1;
@@ -77,7 +123,7 @@ void ConfigPWM( char high, char low, char period, char prescalar ){
     
     // Set the resolution
     // PW = CCPRxL:CCPCON<5:4> * Tosc * TMR2_PreScalarValue
-    CCP1CONbits.CCP1M = 0xff;
+    CCP1CONbits.CCP1M = 0xf;
     CCP1CONbits.DC1B = low;
     CCPR1L = high;
     TRISCbits.TRISC2 = 0;
@@ -168,14 +214,14 @@ void ConfigADC(){
     
     // result formatting
     ADCON0bits.ADRMD = 0;           // 12-bit resolution
-    ADCON1bits.ADFM = 0;            // sign and magnitude
+    ADCON1bits.ADFM = 1;            // two's complement
     
     // enable ADC
     ADCON0bits.ADON = 1;
 }
 
 
-unsigned int ReadADC(){
+int ReadADC(){
     ADCON0bits.GO = 1;
         // start ADC    
     union word vol;
@@ -188,10 +234,75 @@ unsigned int ReadADC(){
 }
 
 
-unsigned int ReadHV(){
+int ReadHV(){
     ADCON0bits.CHS = 1;
     return ReadADC();
 }
+
+
+void ConfigInterrupt(){   
+    INTCON = 0x0;
+    
+    // ------------- CCP module -------------
+    INTCONbits.PEIE = 0x1;
+        // enable peripheral
+    PIE1 = 0x0;
+    PIE1bits.CCP1IE = 0x1;
+        // enable CCP
+    
+    // ------------- IOC module -------------
+    // interrupt on change
+    INTCONbits.IOCIE = 0x1;
+    IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
+    IOCAPbits.IOCAP3 = 0x1;
+    
+    // enable global interrupt
+    INTCONbits.GIE = 0x1;
+        
+        // this should be done in the very end
+}
+
+
+
+void __interrupt() handler(){
+    
+    if( PIR1bits.CCP1IF==1 ){
+        milisecond++;
+        
+        if( buzzCounter>0 ){
+            buzzCounter--;
+        }
+        else{
+            BuzzOnOff(0);
+        }
+        
+        if( milisecond >= 1000 ){
+            milisecond = 0;
+            second++;
+        }
+        
+        if( second >=60 ){
+            second = 0;
+            minutes++;
+            printf("%d\n\r", radiationCounter);
+            radiationCounter = 0;
+        }
+        
+        PIR1bits.CCP1IF = 0;
+    }
+    else if( INTCONbits.IOCIF==1 && IOCAFbits.IOCAF3==1 ){
+        
+        BuzzOnOff(1);
+        buzzCounter = buzzDuration;
+        radiationCounter++;
+        
+        IOCAFbits.IOCAF3 = 0;
+    }
+    
+    return;
+}
+
+
 
 
 #ifdef	__cplusplus
