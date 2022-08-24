@@ -392,6 +392,86 @@ void SetPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
 }
 
 
+// Interrupt
+// To enable:
+//  * enable interrupt enable bits of the specific interrupt"
+//      * INTCON has PEIE (peripheral), TMR0IE, INTE (external), IOCIE (upon change), TMR0IF, INTIF and IOCIF
+//          * IOCIF is readonly: should clear individual pin's flag
+//      * Under PEIE PIE1 register has:
+//          * TMR1GE, ADIE (ADC), RCIE (UART), TXIE (UART), SSP1IE, CCP1IE, TMR2IE, TMR1IE
+//          * its corresponding flag register is PIR1 which contains the corresponding flag bits
+//              * TMR1GIF, ADIF, RCIF, TXIF, SSP1IF, CCP1IF, TMR2IF, TMR1IF
+//  * implement interrupt handler (syntax: void __interrupt() handler(){...})
+//      * must check and clear individual interrupt flags to see what triggered the interrupt
+//      * if interrupt comes from IOC (interrupt on change), should clear the individual pin's flag; the overall flag is read-only.
+//  * enable GIE bit of INTCON (this has to be done at the end of configuration)
+//
+// Interrupt on change (IOC)
+// To configure:
+//  * enable IOCIE bit of INTCON
+//  * configure IOCxP and IOCxN (x is A B or C port, P is trigger on rising edge, and N for falling edge)
+// In the interrupt handler, one should check IOCxIF register (remember not to accidentally mask other flags by clearing the entire register).
+//
+void ConfigInterrupt(){   
+    INTCON = 0x0;
+    
+    // ------------- CCP module -------------
+    INTCONbits.PEIE = 0x1;
+        // enable peripheral
+    PIE1 = 0x0;
+    PIE1bits.CCP1IE = 0x1;
+        // enable CCP
+    
+    // ------------- IOC module -------------
+    // interrupt on change
+    INTCONbits.IOCIE = 0x1;
+    IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
+    IOCAPbits.IOCAP3 = 0x1;
+    
+    // enable global interrupt
+    INTCONbits.GIE = 0x1;
+        // this should be done in the very end
+}
+
+
+
+void __interrupt() handler(){
+    
+    if( PIR1bits.CCP1IF==1 ){
+        milisecond++;
+        
+        if( buzzCounter>0 ){
+            buzzCounter--;
+        }
+        else{
+            BuzzOnOff(0);
+        }
+        
+        if( milisecond >= 1000 ){
+            milisecond = 0;
+            second++;
+        }
+        
+        if( second >=60 ){
+            second = 0;
+            minutes++;
+            printf("%d\n\r", radiationCounter);
+            radiationCounter = 0;
+        }
+        
+        PIR1bits.CCP1IF = 0;
+    }
+    else if( INTCONbits.IOCIF==1 && IOCAFbits.IOCAF3==1 ){
+        
+        BuzzOnOff(1);
+        buzzCounter = buzzDuration;
+        radiationCounter++;
+        
+        IOCAFbits.IOCAF3 = 0;
+    }
+    
+    return;
+}
 
     
 
