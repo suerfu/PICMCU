@@ -101,6 +101,55 @@ int getche(void){
 }
 
 
+// Timer1
+// 16-bit counter
+// To enable:
+//  * disable TMR1GE bit of T1GCON to disable counter/gated mode
+//  * select clock source via TMR1CS<1:0> and T1OSCEN bit of T1CON
+//      * 11 and x => LFINTOSC
+//      * 10 and 0 => external clock
+//      * 01 and x => system clock (Fosc)
+//      * 00 and x => instruction clock (Fosc/4)
+//  * select prescalar via T1CKPS of T1CON
+//      * 1,2,4 or 8, increasing order (00,01,10,11)
+//  * enable TMR1ON bit of T1CON
+//
+void ConfigTimer1(){
+    T1CONbits.TMR1CS = 0x0;
+        // clock source is instruction clock Fosc/4
+    T1CONbits.T1CKPS = 0x3;
+        //Fosc = 32 MHz. Timer clock is Focs/4, another pre-scaler by 8 to obtain 1 MHz timer.
+    T1GCONbits.TMR1GE = 0;
+    T1CONbits.TMR1ON = 1;
+}
+
+
+// Capture and compare module
+// Capture mode: allows timing of events triggered via external pins
+// Compare mode: allows user to trigger external event when predetermined time has passed
+// Event is defined by CCPxM<3:0> bits of CCPxCON register
+//  * x can be 1, 2, or 3, which corresponds to three different modules.
+//      * 11xx: PWM mode
+//      * 1011: compare mode, ADC auto-conversion trigger
+//      * 1010: compare mode, software interrupt only （Note: there might be bug here, the timing not working as expected）
+//      * 1001: compare mode, clears output pin (a physical pin in port A, B or C)
+//      * 1000: compare mode, sets output pin (a physical pin in port A, B or C)
+//      * 0111: capture mode, every 16th rising edge
+//      * 1000: capture mode, every 4th rising edge
+//      * 1000: capture mode, every rising edge
+//      * 1000: capture mode, every falling edge
+//      * 0010: compare mode, toggle output
+//      * 0000: module disabled
+//
+void ConfigCCP1(){
+    CCP1CONbits.CCP1M = 0xb;     // compare with software interrupt
+    CCPR1H = 1000 / 256;
+    CCPR1L = 1000 % 256;
+        // calling the interrupt handler every 10000 clock ticks, that is 20Hz frequency.
+}
+
+
+
 // Fixed voltage reference: 1.024 V, 2.048 V, 4.096 V, can route to ADC pin, ADC ref, DAC and comparator
 //    enable by setting FVREN bit of FVRCON
 //    FVRRDY bit of FVRCON to check if stablized
@@ -343,6 +392,86 @@ void SetPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
 }
 
 
+// Interrupt
+// To enable:
+//  * enable interrupt enable bits of the specific interrupt"
+//      * INTCON has PEIE (peripheral), TMR0IE, INTE (external), IOCIE (upon change), TMR0IF, INTIF and IOCIF
+//          * IOCIF is readonly: should clear individual pin's flag
+//      * Under PEIE PIE1 register has:
+//          * TMR1GE, ADIE (ADC), RCIE (UART), TXIE (UART), SSP1IE, CCP1IE, TMR2IE, TMR1IE
+//          * its corresponding flag register is PIR1 which contains the corresponding flag bits
+//              * TMR1GIF, ADIF, RCIF, TXIF, SSP1IF, CCP1IF, TMR2IF, TMR1IF
+//  * implement interrupt handler (syntax: void __interrupt() handler(){...})
+//      * must check and clear individual interrupt flags to see what triggered the interrupt
+//      * if interrupt comes from IOC (interrupt on change), should clear the individual pin's flag; the overall flag is read-only.
+//  * enable GIE bit of INTCON (this has to be done at the end of configuration)
+//
+// Interrupt on change (IOC)
+// To configure:
+//  * enable IOCIE bit of INTCON
+//  * configure IOCxP and IOCxN (x is A B or C port, P is trigger on rising edge, and N for falling edge)
+// In the interrupt handler, one should check IOCxIF register (remember not to accidentally mask other flags by clearing the entire register).
+//
+void ConfigInterrupt(){   
+    INTCON = 0x0;
+    
+    // ------------- CCP module -------------
+    INTCONbits.PEIE = 0x1;
+        // enable peripheral
+    PIE1 = 0x0;
+    PIE1bits.CCP1IE = 0x1;
+        // enable CCP
+    
+    // ------------- IOC module -------------
+    // interrupt on change
+    INTCONbits.IOCIE = 0x1;
+    IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
+    IOCAPbits.IOCAP3 = 0x1;
+    
+    // enable global interrupt
+    INTCONbits.GIE = 0x1;
+        // this should be done in the very end
+}
+
+
+
+void __interrupt() handler(){
+    
+    if( PIR1bits.CCP1IF==1 ){
+        milisecond++;
+        
+        if( buzzCounter>0 ){
+            buzzCounter--;
+        }
+        else{
+            BuzzOnOff(0);
+        }
+        
+        if( milisecond >= 1000 ){
+            milisecond = 0;
+            second++;
+        }
+        
+        if( second >=60 ){
+            second = 0;
+            minutes++;
+            printf("%d\n\r", radiationCounter);
+            radiationCounter = 0;
+        }
+        
+        PIR1bits.CCP1IF = 0;
+    }
+    else if( INTCONbits.IOCIF==1 && IOCAFbits.IOCAF3==1 ){
+        
+        BuzzOnOff(1);
+        buzzCounter = buzzDuration;
+        radiationCounter++;
+        
+        IOCAFbits.IOCAF3 = 0;
+    }
+    
+    return;
+}
 
     
 
