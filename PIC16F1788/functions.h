@@ -124,6 +124,32 @@ void ConfigTimer1(){
 }
 
 
+// Capture and compare module
+// Capture mode: allows timing of events triggered via external pins
+// Compare mode: allows user to trigger external event when predetermined time has passed
+// Event is defined by CCPxM<3:0> bits of CCPxCON register
+//  * x can be 1, 2, or 3, which corresponds to three different modules.
+//      * 11xx: PWM mode
+//      * 1011: compare mode, ADC auto-conversion trigger
+//      * 1010: compare mode, software interrupt only （Note: there might be bug here, the timing not working as expected）
+//      * 1001: compare mode, clears output pin (a physical pin in port A, B or C)
+//      * 1000: compare mode, sets output pin (a physical pin in port A, B or C)
+//      * 0111: capture mode, every 16th rising edge
+//      * 1000: capture mode, every 4th rising edge
+//      * 1000: capture mode, every rising edge
+//      * 1000: capture mode, every falling edge
+//      * 0010: compare mode, toggle output
+//      * 0000: module disabled
+//
+void ConfigCCP1(){
+    CCP1CONbits.CCP1M = 0xb;     // compare with software interrupt
+    CCPR1H = 1000 / 256;
+    CCPR1L = 1000 % 256;
+        // calling the interrupt handler every 10000 clock ticks, that is 20Hz frequency.
+}
+
+
+
 // Fixed voltage reference: 1.024 V, 2.048 V, 4.096 V, can route to ADC pin, ADC ref, DAC and comparator
 //    enable by setting FVREN bit of FVRCON
 //    FVRRDY bit of FVRCON to check if stablized
