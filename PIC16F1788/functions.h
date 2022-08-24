@@ -101,6 +101,29 @@ int getche(void){
 }
 
 
+// Timer1
+// 16-bit counter
+// To enable:
+//  * disable TMR1GE bit of T1GCON to disable counter/gated mode
+//  * select clock source via TMR1CS<1:0> and T1OSCEN bit of T1CON
+//      * 11 and x => LFINTOSC
+//      * 10 and 0 => external clock
+//      * 01 and x => system clock (Fosc)
+//      * 00 and x => instruction clock (Fosc/4)
+//  * select prescalar via T1CKPS of T1CON
+//      * 1,2,4 or 8, increasing order (00,01,10,11)
+//  * enable TMR1ON bit of T1CON
+//
+void ConfigTimer1(){
+    T1CONbits.TMR1CS = 0x0;
+        // clock source is instruction clock Fosc/4
+    T1CONbits.T1CKPS = 0x3;
+        //Fosc = 32 MHz. Timer clock is Focs/4, another pre-scaler by 8 to obtain 1 MHz timer.
+    T1GCONbits.TMR1GE = 0;
+    T1CONbits.TMR1ON = 1;
+}
+
+
 // Fixed voltage reference: 1.024 V, 2.048 V, 4.096 V, can route to ADC pin, ADC ref, DAC and comparator
 //    enable by setting FVREN bit of FVRCON
 //    FVRRDY bit of FVRCON to check if stablized
