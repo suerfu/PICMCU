@@ -91,7 +91,6 @@ int main(int argc, char** argv) {
     
     ConfigPSMC1( period.bytes.msb, period.bytes.lsb, duty_cycle.bytes.msb, duty_cycle.bytes.lsb, 0, 0 );
     
-    
     ConfigInterrupt();
 
     printf("Welcome!\n\r");
@@ -99,7 +98,25 @@ int main(int argc, char** argv) {
     ConfigLCD();
 
     while(1){
+        
+//        LCDClear();
+        Delay(1000);
+        LCDPrint( "Hello", 5, 1, 2);
+        
+/*
+        LCDData('e');
+        LCDData('l');
+        LCDData('l');
+        LCDData('o');*/
+//        Delay(1000);
+        LCDPrint( "World", 5, 0, 3);
+/*        
+        LCDData('o');
+        LCDData('r');
+        LCDData('l');
+        LCDData('d');*/
 
+/*
         scanf( "%s", command );
         
         if( strncmp(command, "!pr", 3)==0 ){
@@ -119,7 +136,7 @@ int main(int argc, char** argv) {
         else if( strncmp(command, "?hv", 3)==0 ){
             printf("%d\n\r", ReadHV() );
         }
-
+*/
     }
 
     return 0;
