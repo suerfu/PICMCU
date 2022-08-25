@@ -26,6 +26,7 @@
 #include <stdlib.h>
 
 #include "functions.h"
+#include "lcd.h"
 
 /*
 Pin description:
@@ -62,7 +63,7 @@ int main(int argc, char** argv) {
 
     ConfigPort();
     ConfigClock();
-    
+
     ConfigTimer1();
     ConfigCCP1();
     
@@ -76,10 +77,10 @@ int main(int argc, char** argv) {
     
     // Initial values of period and duty cycle
     // Later the initial value should be read from EEPROM of the processor
-    union word period;
-    period.val = 600;
-    union word duty_cycle;
-    duty_cycle.val = 140;
+    //union word period;
+    //period.val = 600;
+    //union word duty_cycle;
+    //duty_cycle.val = 140;
         // first device using 2x27 kOhm + 10 kOhm readout resistor and L=33uH is well-suited for 140/600
     
     union word period;
@@ -90,12 +91,15 @@ int main(int argc, char** argv) {
     
     ConfigPSMC1( period.bytes.msb, period.bytes.lsb, duty_cycle.bytes.msb, duty_cycle.bytes.lsb, 0, 0 );
     
+    
     ConfigInterrupt();
-    
+
     printf("Welcome!\n\r");
-    
+
+    ConfigLCD();
+
     while(1){
-    
+
         scanf( "%s", command );
         
         if( strncmp(command, "!pr", 3)==0 ){
@@ -115,7 +119,7 @@ int main(int argc, char** argv) {
         else if( strncmp(command, "?hv", 3)==0 ){
             printf("%d\n\r", ReadHV() );
         }
-        
+
     }
 
     return 0;

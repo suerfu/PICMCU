@@ -26,10 +26,18 @@ unsigned int milisecond = 0;
 unsigned int second = 0;
 unsigned int minutes = 0;
 
+unsigned int delayMS = 0;
+
 unsigned int radiationCounter = 0;
 
 const char buzzDuration = 1;
 char buzzCounter = 0;
+
+void Delay( unsigned int a){
+    delayMS = a;
+    while( delayMS!=0 ){}
+    return;
+}
 
 void BuzzOnOff( char a ){
     PORTAbits.RA4 = a;
@@ -43,8 +51,8 @@ char GetBuzzStatus(){
 
 
 void ConfigPort(){
-    TRISA = 0xf;
-    ANSELA = 0x3;
+    TRISA = 0x0f;
+    ANSELA = 0x03;
     TRISB = TRISC = 0x0;
     ANSELB = ANSELC = 0x0;
     PORTA = PORTB = PORTC = 0x0;
@@ -274,6 +282,10 @@ void __interrupt() handler(){
         }
         else{
             BuzzOnOff(0);
+        }
+        
+        if( delayMS>0 ){
+            delayMS--;
         }
         
         if( milisecond >= 1000 ){
