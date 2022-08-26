@@ -474,6 +474,55 @@ void __interrupt() handler(){
 }
 
     
+// EEPROM 
+// PIC16F1788 has 1-byte memories addressed with 1-byte (256 memory locations)
+// To read memory,
+//  * load address
+//  * clear EEPGD (0 - not program memory) and CFGS (0 - not device configuration)
+//  * set RD bit of EECON high to initiate read.
+//      * upon finish, this bit will become low again
+//    
+char ReadEEPROM( char addr){
+    
+    EEADRL = addr;
+    
+    // access EEPROM
+    EECON1bits.EEPGD = 0;
+    EECON1bits.CFGS = 0;
+    
+    // initiate read operation and wait for completion
+    EECON1bits.RD = 1;
+    while( EECON1bits.RD == 1){}
+    
+    return EEDATL;
+}
+
+// To write memory,
+//  * load address and value to write
+//  * disable interrupt
+//  * set write-enable WREN bit of EECON
+//  * go through a particular sequence of writing 55H and then aaH to EECON2
+//  * set write-enable low and re-enable global interrupt (if it is enabled)
+//
+void WriteEEPROM( char addr, char value){
+    
+    EEADRL = addr;  // memory address
+    EEDATL = value; // memory value
+    
+    INTCONbits.GIE = 0;
+    EECON1bits.WREN = 1;
+    
+    EECON2 = 0x55;
+    EECON2 = 0xaa;
+    EECON1bits.WR = 1;
+    while( EECON1bits.WR == 1 ){}
+    
+    EECON1bits.WREN = 0;
+    INTCONbits.GIE = 1;
+
+    return;
+}
+
 
 #ifdef	__cplusplus
 }
