@@ -12,6 +12,8 @@
 extern "C" {
 #endif
 
+#include "lcd.h"
+    
 struct twobytes{
     unsigned char lsb;
     unsigned char msb;
@@ -29,9 +31,18 @@ unsigned int minutes = 0;
 unsigned int delayMS = 0;
 
 unsigned int radiationCounter = 0;
+unsigned int radiationCounter2 = 0;
 
 const char buzzDuration = 1;
 char buzzCounter = 0;
+
+char updateHV = 0;
+char updateCPM = 0;
+int LCDCount = 0;
+int LCDHV = 0;
+
+unsigned char countsInterval[6] = {0,0,0,0,0,0,};
+unsigned char countsIndex = 0;
 
 void Delay( unsigned int a){
     delayMS = a;
@@ -50,6 +61,8 @@ char GetBuzzStatus(){
 }
 
 
+// IO operations
+//
 void ConfigPort(){
     TRISA = 0x0f;
     ANSELA = 0x03;
@@ -58,6 +71,9 @@ void ConfigPort(){
     PORTA = PORTB = PORTC = 0x0;
 }
 
+
+// Clock-related
+//
 void ConfigClock(){
     OSCCONbits.SCS = 0x0;
     OSCCONbits.SPLLEN = 1;
@@ -65,7 +81,23 @@ void ConfigClock(){
     while( (OSCSTAT & 0x58) != 0x58 ){;}
 }
 
+void ConfigTimer1(){
+    T1CONbits.TMR1CS = 0x0;
+        // clock source is instruction clock Fosc/4
+    T1CONbits.T1CKPS = 0x3;
+        //Fosc = 32 MHz. Timer clock is Focs/4, another pre-scaler by 8 to obtain 1 MHz timer.
+    T1GCONbits.TMR1GE = 0;
+    T1CONbits.TMR1ON = 1;
+}
+
+void Timer1On(){
+    T1CONbits.TMR1ON = 1;
+}
+
+
+// Serial Interface
 // Configured for 9600 8N1 mode.
+//
 void ConfigUSART(){
     //PORTC |= 0xc0;
         // added to fix the issue of USB bridge cannot pull RX pin of the MCU completely high.
@@ -96,21 +128,8 @@ int getche(void){
 }
 
 
-void ConfigTimer1(){
-    T1CONbits.TMR1CS = 0x0;
-        // clock source is instruction clock Fosc/4
-    T1CONbits.T1CKPS = 0x3;
-        //Fosc = 32 MHz. Timer clock is Focs/4, another pre-scaler by 8 to obtain 1 MHz timer.
-    T1GCONbits.TMR1GE = 0;
-    T1CONbits.TMR1ON = 1;
-}
-
-
-void Timer1On(){
-    T1CONbits.TMR1ON = 1;
-}
-
-
+// Compare module for interrupt
+//
 void ConfigCCP1(){
     CCP1CONbits.CCP1M = 0xb;     // compare with software interrupt
     CCPR1H = 1000 / 256;
@@ -119,6 +138,8 @@ void ConfigCCP1(){
 }
 
 
+// PWM-related functions
+//
 void ConfigPWM( char high, char low, char period, char prescalar ){
     // First disable the output
     TRISCbits.TRISC2 = 1;
@@ -193,6 +214,8 @@ void SetPSMC1( char PRH, char PRL, char DCH, char DCL, char PHH, char PHL ){
 }
 
 
+// ADC-related functions
+//
 void ConfigFVR(){
     FVRCONbits.FVREN = 1;
     FVRCONbits.ADFVR = 0b11;
@@ -241,13 +264,117 @@ int ReadADC(){
     return vol.val;
 }
 
-
+// Specific to the Geiger counter module
 int ReadHV(){
     ADCON0bits.CHS = 1;
     return ReadADC();
 }
 
 
+/*
+void LCDWrite( char cmd, char mode ){
+    PORTAbits.RA6 = mode;
+        // select command or data
+    //PORTAbits.RA7 = 0;
+        // read/~write pin, should always be 0 in this application
+    PORTB = cmd;
+        // PORTB is the actual data to be sent
+    PORTAbits.RA5 = 0;
+    PORTAbits.RA5 = 1;
+    PORTAbits.RA5 = 0;
+        // Pulse the enable pin
+    Delay(1);
+}
+
+void LCDCommand( char cmd ){
+    LCDWrite(cmd, 0);
+}
+
+void LCDData( char data ){
+    LCDWrite( data, 1);
+}
+
+void LCDClear(){
+    LCDCommand( LCD_CLEARDISPLAY );
+    Delay(2);
+}
+
+void LCDHome(){
+    LCDCommand( LCD_RETURNHOME );
+    Delay(2);
+}
+
+#define ROW_INCR 0x40
+#define MAX_ROW 2
+//#define MAX_COL 0x28
+#define MAX_COL 16
+
+void LCDCursor( char row, char col){
+    LCDCommand( LCD_SETDDRAMADDR | ( (row%MAX_ROW)*ROW_INCR + col%MAX_COL) );
+}
+
+void ConfigLCD(){
+    
+    PORTAbits.RA4 = 1;
+    
+    // Configure direction of data flow
+    TRISAbits.TRISA5 = 0;
+    TRISAbits.TRISA6 = 0;
+    TRISAbits.TRISA7 = 0;
+    TRISB = 0;
+    TRISCbits.TRISC2 = 0;
+    
+    // Set default values
+    PORTAbits.RA7 = 0;
+    PORTCbits.RC2 = 1;
+    
+    // Allow for setup time of about 40 ms
+    Delay( 50 );
+    PORTAbits.RA6 = 0;  // RS
+    PORTAbits.RA5 = 0;  // EN
+    
+    // Function set
+    LCDCommand( (LCD_FUNCTIONSET | LCD_8BITMODE | LCD_2LINE) & ~LCD_5x10DOTS );
+    Delay( 5 );
+    LCDCommand( (LCD_FUNCTIONSET | LCD_8BITMODE | LCD_2LINE) & ~LCD_5x10DOTS );
+    Delay( 2 );
+    LCDCommand( (LCD_FUNCTIONSET | LCD_8BITMODE | LCD_2LINE) & ~LCD_5x10DOTS );
+
+    LCDClear();
+    
+    // Display control
+    LCDCommand( LCD_DISPLAYCONTROL | LCD_DISPLAYON | LCD_CURSORON | LCD_BLINKON );
+    
+    // Entry mode
+    LCDCommand( (LCD_ENTRYMODESET | LCD_ENTRYRIGHT) & ~LCD_ENTRYSHIFTDISPLAY );
+    
+    // Cursor shift
+    // LCDCommand( (LCD_CURSORSHIFT | LCD_MOVERIGHT) & ~LCD_DISPLAYSHIFT );
+    
+    PORTAbits.RA4 = 0;
+}
+
+void LCDPrint( char temp[], char n, char row, char col ){
+    LCDCursor( row, col);
+    for( char i=0; i<n; i++){
+        LCDData( temp[i] );
+    }
+}
+
+char LCDCountDisplay[6];
+char LCDHVDisplay[4];
+
+void UpdateLCD( unsigned int cpm, unsigned int hv){    
+    sprintf( LCDCountDisplay, "%-6u", cpm );
+    sprintf( LCDHVDisplay, "%-4u", hv );
+    LCDPrint( LCDCountDisplay, 6, 0, 8);
+    LCDPrint( LCDHVDisplay, 4, 1, 8);
+}
+*/
+
+
+// Interrupt-related functions
+//
 void ConfigInterrupt(){   
     INTCON = 0x0;
     
@@ -270,8 +397,6 @@ void ConfigInterrupt(){
         // this should be done in the very end
 }
 
-
-
 void __interrupt() handler(){
     
     if( PIR1bits.CCP1IF==1 ){
@@ -293,9 +418,22 @@ void __interrupt() handler(){
             second++;
         }
         
+        if( second%2==0 ){
+            updateHV = 1;
+            LCDHV = ReadHV()/2;
+            //LCDCount = radiationCounter;
+            //LCDCount = countsInterval[0] + countsInterval[1] + countsInterval[2] + countsInterval[3] + countsInterval[4] + countsInterval[5];
+            //countsIndex = (countsIndex+1)%6;
+            //countsInterval[ countsIndex ] = 0;
+        }
+        
         if( second >=60 ){
             second = 0;
             minutes++;
+            
+            updateCPM = 1;
+            LCDCount = radiationCounter;
+            
             printf("%d\n\r", radiationCounter);
             radiationCounter = 0;
         }
@@ -307,6 +445,7 @@ void __interrupt() handler(){
         BuzzOnOff(1);
         buzzCounter = buzzDuration;
         radiationCounter++;
+        //countsInterval[ countsIndex ]++;
         
         IOCAFbits.IOCAF3 = 0;
     }
@@ -315,8 +454,41 @@ void __interrupt() handler(){
 }
 
 
+// EEPROM memory operations
+//
+char ReadEEPROM( char addr){
+    
+    EEADRL = addr;
+    
+    // access EEPROM
+    EECON1bits.EEPGD = 0;
+    EECON1bits.CFGS = 0;
+    
+    // initiate read operation and wait for completion
+    EECON1bits.RD = 1;
+    while( EECON1bits.RD == 1){}
+    
+    return EEDATL;
+}
 
+void WriteEEPROM( char addr, char value){
+    
+    EEADRL = addr;
+    EEDATL = value;
+    
+    INTCONbits.GIE = 0;
+    EECON1bits.WREN = 1;
+    
+    EECON2 = 0x55;
+    EECON2 = 0xaa;
+    EECON1bits.WR = 1;
+    while( EECON1bits.WR == 1 ){}
+    
+    EECON1bits.WREN = 0;
+    INTCONbits.GIE = 1;
 
+    return;
+}
 #ifdef	__cplusplus
 }
 #endif

@@ -67,7 +67,15 @@ extern "C" {
 // DD - display data
 #define LCD_SETCGRAMADDR 0x40
 #define LCD_SETDDRAMADDR 0x80
+    
+// Device-specific definitions    
+#define ROW_INCR 0x40
+#define MAX_ROW 2
+//#define MAX_COL 0x28
+#define MAX_COL 16
 
+extern void Delay( unsigned int );
+    
 void LCDWrite( char cmd, char mode ){
     PORTAbits.RA6 = mode;
         // select command or data
@@ -99,11 +107,6 @@ void LCDHome(){
     LCDCommand( LCD_RETURNHOME );
     Delay(2);
 }
-
-#define ROW_INCR 0x40
-#define MAX_ROW 2
-//#define MAX_COL 0x28
-#define MAX_COL 16
 
 void LCDCursor( char row, char col){
     LCDCommand( LCD_SETDDRAMADDR | ( (row%MAX_ROW)*ROW_INCR + col%MAX_COL) );
@@ -139,15 +142,13 @@ void ConfigLCD(){
     LCDClear();
     
     // Display control
-    LCDCommand( LCD_DISPLAYCONTROL | LCD_DISPLAYON | LCD_CURSORON | LCD_BLINKON );
+    LCDCommand( (LCD_DISPLAYCONTROL | LCD_DISPLAYON) & ~LCD_CURSORON & ~LCD_BLINKON );
     
     // Entry mode
     LCDCommand( (LCD_ENTRYMODESET | LCD_ENTRYRIGHT) & ~LCD_ENTRYSHIFTDISPLAY );
     
     // Cursor shift
     // LCDCommand( (LCD_CURSORSHIFT | LCD_MOVERIGHT) & ~LCD_DISPLAYSHIFT );
-    
-
     
     PORTAbits.RA4 = 0;
 }
@@ -156,6 +157,7 @@ void LCDPrint( char temp[], char n, char row, char col ){
     LCDCursor( row, col);
     for( char i=0; i<n; i++){
         LCDData( temp[i] );
+        Delay(10);
     }
 }
 
