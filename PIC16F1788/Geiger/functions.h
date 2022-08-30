@@ -489,6 +489,7 @@ void WriteEEPROM( char addr, char value){
 
     return;
 }
+
 #ifdef	__cplusplus
 }
 #endif
