@@ -227,6 +227,9 @@ void ConfigFVR(){
 void ConfigADC(){
     
     // port configuration
+    TRISAbits.TRISA0 = 1;
+    ANSELAbits.ANSA0 = 1;
+        // RA0 is for reading phototransistor
     TRISAbits.TRISA1 = 1;
     ANSELAbits.ANSA1 = 1;
         // RA1 is getting the HV feedback.
@@ -237,7 +240,10 @@ void ConfigADC(){
     
     // Positive and negative references
     // Should be changed based on applications.
+    ADCON0bits.CHS = 0;
+        // phototransistor
     ADCON0bits.CHS = 1;
+        // HV feedback
     ADCON2bits.CHSN = 0b1111;
     
     // clock
@@ -266,11 +272,27 @@ int ReadADC(){
 
 // Specific to the Geiger counter module
 int ReadHV(){
-    ADCON0bits.CHS = 1;
-    return ReadADC();
+    if( ADCON0bits.CHS == 1 ){
+        return ReadADC();
+    }
+    else{
+        ADCON0bits.CHS = 1;
+        ReadADC();
+        return ReadADC();
+    }
 }
 
 
+int ReadBrightness(){
+    if( ADCON0bits.CHS == 0 ){
+        return ReadADC();
+    }
+    else{
+        ADCON0bits.CHS = 0;
+        ReadADC();
+        return ReadADC();
+    }
+}
 /*
 void LCDWrite( char cmd, char mode ){
     PORTAbits.RA6 = mode;
@@ -418,7 +440,7 @@ void __interrupt() handler(){
             second++;
         }
         
-        if( second%2==0 ){
+        if( second%1==0 && milisecond==0 && updateHV==0 ){
             updateHV = 1;
             LCDHV = ReadHV()/2;
             //LCDCount = radiationCounter;

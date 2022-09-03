@@ -113,12 +113,13 @@ int main(int argc, char** argv) {
     
     char LCDCountDisplay[16];
     char LCDHVDisplay[16];
-    
+
     ConfigInterrupt();
 
     printf("Welcome!\n\r");
 
     // Display message on the LCD screen
+    /*
     ConfigLCD();
     
     if( onTime%8!=0 ){
@@ -137,6 +138,7 @@ int main(int argc, char** argv) {
     
     LCDPrint( "RT = ", 5, 0, 0);
     LCDPrint( "HV = ", 5, 1, 0);
+    */
 
     while(1){
 
@@ -180,13 +182,22 @@ int main(int argc, char** argv) {
             //LCDClear();
             //LCDPrint( "CPM", 3, 0, 2);
             //LCDPrint( "HV ", 3, 1, 2);
+            /*
             sprintf( LCDHVDisplay,    "%4u V", LCDHV );
             LCDPrint( LCDHVDisplay, 6, 1, 5);
+             */
+            // above block comment is used for Geiger mode.
+            printf( "%d\n\r", ReadBrightness() );
+            
+
         }
         if( updateCPM>0 ){
+            /*
             updateCPM = 0;
             sprintf( LCDCountDisplay, "%4u CPM", LCDCount );
             LCDPrint( LCDCountDisplay, 8, 0, 5);
+            */
+            // above block comment is used for Geiger mode.
         }
 
     }
