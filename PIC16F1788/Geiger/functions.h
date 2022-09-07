@@ -40,9 +40,13 @@ char updateHV = 0;
 char updateCPM = 0;
 int LCDCount = 0;
 int LCDHV = 0;
+int LCDPHT = 0;
 
 unsigned char countsInterval[6] = {0,0,0,0,0,0,};
 unsigned char countsIndex = 0;
+
+#define REFRESH_RATE_HV 2
+#define REFRESH_RATE_CPM 60
 
 void Delay( unsigned int a){
     delayMS = a;
@@ -151,7 +155,7 @@ void ConfigPWM( char high, char low, char period, char prescalar ){
     T2CONbits.TMR2ON = 1;
     
     // Set the resolution
-    // PW = CCPRxL:CCPCON<5:4> * Tosc * TMR2_PreScalarValue
+    // PW = CCPRxL:CCPCON<5:4> * (1/Fosc) * TMR2_PreScalarValue
     CCP1CONbits.CCP1M = 0xf;
     CCP1CONbits.DC1B = low;
     CCPR1L = high;
@@ -293,106 +297,6 @@ int ReadBrightness(){
         return ReadADC();
     }
 }
-/*
-void LCDWrite( char cmd, char mode ){
-    PORTAbits.RA6 = mode;
-        // select command or data
-    //PORTAbits.RA7 = 0;
-        // read/~write pin, should always be 0 in this application
-    PORTB = cmd;
-        // PORTB is the actual data to be sent
-    PORTAbits.RA5 = 0;
-    PORTAbits.RA5 = 1;
-    PORTAbits.RA5 = 0;
-        // Pulse the enable pin
-    Delay(1);
-}
-
-void LCDCommand( char cmd ){
-    LCDWrite(cmd, 0);
-}
-
-void LCDData( char data ){
-    LCDWrite( data, 1);
-}
-
-void LCDClear(){
-    LCDCommand( LCD_CLEARDISPLAY );
-    Delay(2);
-}
-
-void LCDHome(){
-    LCDCommand( LCD_RETURNHOME );
-    Delay(2);
-}
-
-#define ROW_INCR 0x40
-#define MAX_ROW 2
-//#define MAX_COL 0x28
-#define MAX_COL 16
-
-void LCDCursor( char row, char col){
-    LCDCommand( LCD_SETDDRAMADDR | ( (row%MAX_ROW)*ROW_INCR + col%MAX_COL) );
-}
-
-void ConfigLCD(){
-    
-    PORTAbits.RA4 = 1;
-    
-    // Configure direction of data flow
-    TRISAbits.TRISA5 = 0;
-    TRISAbits.TRISA6 = 0;
-    TRISAbits.TRISA7 = 0;
-    TRISB = 0;
-    TRISCbits.TRISC2 = 0;
-    
-    // Set default values
-    PORTAbits.RA7 = 0;
-    PORTCbits.RC2 = 1;
-    
-    // Allow for setup time of about 40 ms
-    Delay( 50 );
-    PORTAbits.RA6 = 0;  // RS
-    PORTAbits.RA5 = 0;  // EN
-    
-    // Function set
-    LCDCommand( (LCD_FUNCTIONSET | LCD_8BITMODE | LCD_2LINE) & ~LCD_5x10DOTS );
-    Delay( 5 );
-    LCDCommand( (LCD_FUNCTIONSET | LCD_8BITMODE | LCD_2LINE) & ~LCD_5x10DOTS );
-    Delay( 2 );
-    LCDCommand( (LCD_FUNCTIONSET | LCD_8BITMODE | LCD_2LINE) & ~LCD_5x10DOTS );
-
-    LCDClear();
-    
-    // Display control
-    LCDCommand( LCD_DISPLAYCONTROL | LCD_DISPLAYON | LCD_CURSORON | LCD_BLINKON );
-    
-    // Entry mode
-    LCDCommand( (LCD_ENTRYMODESET | LCD_ENTRYRIGHT) & ~LCD_ENTRYSHIFTDISPLAY );
-    
-    // Cursor shift
-    // LCDCommand( (LCD_CURSORSHIFT | LCD_MOVERIGHT) & ~LCD_DISPLAYSHIFT );
-    
-    PORTAbits.RA4 = 0;
-}
-
-void LCDPrint( char temp[], char n, char row, char col ){
-    LCDCursor( row, col);
-    for( char i=0; i<n; i++){
-        LCDData( temp[i] );
-    }
-}
-
-char LCDCountDisplay[6];
-char LCDHVDisplay[4];
-
-void UpdateLCD( unsigned int cpm, unsigned int hv){    
-    sprintf( LCDCountDisplay, "%-6u", cpm );
-    sprintf( LCDHVDisplay, "%-4u", hv );
-    LCDPrint( LCDCountDisplay, 6, 0, 8);
-    LCDPrint( LCDHVDisplay, 4, 1, 8);
-}
-*/
 
 
 // Interrupt-related functions
@@ -440,28 +344,30 @@ void __interrupt() handler(){
             second++;
         }
         
-        if( second%1==0 && milisecond==0 && updateHV==0 ){
+        if( second % REFRESH_RATE_HV==0 && milisecond==0 && updateHV==0 ){
             updateHV = 1;
             LCDHV = ReadHV()/2;
+            LCDPHT = ReadBrightness();
             //LCDCount = radiationCounter;
             //LCDCount = countsInterval[0] + countsInterval[1] + countsInterval[2] + countsInterval[3] + countsInterval[4] + countsInterval[5];
             //countsIndex = (countsIndex+1)%6;
             //countsInterval[ countsIndex ] = 0;
         }
         
-        if( second >=60 ){
+        if( second >= REFRESH_RATE_CPM ){
             second = 0;
             minutes++;
             
             updateCPM = 1;
             LCDCount = radiationCounter;
             
-            //printf("%d\n\r", radiationCounter);
+            printf("%d\n\r", radiationCounter);
             radiationCounter = 0;
         }
         
         PIR1bits.CCP1IF = 0;
     }
+    
     else if( INTCONbits.IOCIF==1 && IOCAFbits.IOCAF3==1 ){
         
         BuzzOnOff(1);

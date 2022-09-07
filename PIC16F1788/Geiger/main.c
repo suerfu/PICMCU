@@ -63,11 +63,14 @@ extern char updateHV;
 extern char updateCPM;
 extern int LCDCount;
 extern int LCDHV;
+extern int LCDPHT;  // phototransistor reading
 
 char onTime;
 
 int main(int argc, char** argv) {
 
+    // Some routine but necessary configurations
+    //
     ConfigPort();
     ConfigClock();
 
@@ -79,66 +82,45 @@ int main(int argc, char** argv) {
     ConfigFVR();
     ConfigADC();
 
-    onTime = ReadEEPROM( 0 )+1;
-    WriteEEPROM( 0, onTime );
-    
+    // Configure SMPS HV-related functions
+    //
     char command[8];
         // used to obtain command from user    
     
-    // Initial values of period and duty cycle
-    // Later the initial value should be read from EEPROM of the processor
-    //union word period;
-    //period.val = 600;
-    //union word duty_cycle;
-    //duty_cycle.val = 140;
-        // first device using 2x27 kOhm + 10 kOhm readout resistor and L=33uH is well-suited for 140/600
-    
     union word period;
-    //period.val = 600;
     period.bytes.msb = ReadEEPROM(1);
     period.bytes.lsb = ReadEEPROM(2);
-    //WriteEEPROM( 1, period.bytes.msb );
-    //WriteEEPROM( 2, period.bytes.lsb );
     
     union word duty_cycle;
-    //duty_cycle.val = 140;
     duty_cycle.bytes.msb = ReadEEPROM(3);
     duty_cycle.bytes.lsb = ReadEEPROM(4);
-    //WriteEEPROM( 3, duty_cycle.bytes.msb );
-    //WriteEEPROM( 4, duty_cycle.bytes.lsb );
-    
-        // second board first device using a single 100kOhm readout resistor and L=470uH is well-suited for 500/700
     
     ConfigPSMC1( period.bytes.msb, period.bytes.lsb, duty_cycle.bytes.msb, duty_cycle.bytes.lsb, 0, 0 );
     
-    char LCDCountDisplay[16];
-    char LCDHVDisplay[16];
-
+    // Setup interrupts. Since LCD needs counter, this has to happen before LCD configuration
+    //
     ConfigInterrupt();
 
     printf("Welcome!\n\r");
 
-    // Display message on the LCD screen
-    /*
-    ConfigLCD();
-    
-    if( onTime%8!=0 ){
-        LCDPrint( "Happy Birthday!", 15, 0, 0);
-    }
-    else{
-        if( ReadHV()%2==0 ){
-            LCDPrint( "Happy Birthday!", 15, 0, 0);
-        }
-        else{
-            LCDPrint( "Kan Hanpi!", 10, 0, 0);
-        }
-    }
+    // Configure the LCD display module
+    //
+    char LCDCountDisplay[8];
+    char LCDHVDisplay[8];
+    char LCDPhotoTransistorDisplay[8];
+    char LCDDutyCycle = 10;
+
+//    ConfigLCD();
+//    ConfigPWM( LCDDutyCycle, 0, 0xff, 0 );
+
+    LCDPrint( "Welcome!", 8, 0, 0);
     Delay(2000);
     LCDClear();
     
-    LCDPrint( "RT = ", 5, 0, 0);
-    LCDPrint( "HV = ", 5, 1, 0);
-    */
+    LCDPrint( "RT=", 3, 0, 0);
+    LCDPrint( "HV=", 3, 1, 0);
+    LCDPrint( "BR=", 3, 8, 0);
+    
 
     while(1){
 
@@ -159,6 +141,10 @@ int main(int argc, char** argv) {
                 WriteEEPROM( 3, duty_cycle.bytes.msb );
                 WriteEEPROM( 4, duty_cycle.bytes.lsb );
             }
+            else if( strncmp(command, "!br", 3)==0 ){
+                scanf( "%d", &LCDDutyCycle );
+                ConfigPWM( LCDDutyCycle, 0, 0xff, 0 );
+            } 
             else if( strncmp(command, "?pr", 3)==0 ){
                 printf("%u\n\r", period.val );
             }
@@ -168,39 +154,28 @@ int main(int argc, char** argv) {
             else if( strncmp(command, "?hv", 3)==0 ){
                 printf("%d\n\r", ReadHV() );
             }
+            else if( strncmp(command, "?pt", 3)==0 ){
+                printf("%d\n\r", ReadBrightness() );
+            }
             else{
                 printf("N/A\n\r" );
             }
-            
             PIR1bits.RCIF = 0;
         }
         
         if( updateHV>0 ){
             updateHV = 0;
-            //char a = sprintf( LCDCountDisplay, "Rate = %4u CPM", LCDCount );
-            //char b = sprintf( LCDHVDisplay,    "HV   = %4u V", LCDHV );
-            //LCDClear();
-            //LCDPrint( "CPM", 3, 0, 2);
-            //LCDPrint( "HV ", 3, 1, 2);
-            /*
             sprintf( LCDHVDisplay,    "%4u V", LCDHV );
-            LCDPrint( LCDHVDisplay, 6, 1, 5);
-             */
-            // above block comment is used for Geiger mode.
-            printf( "%d\n\r", ReadBrightness() );
-            
-
+            LCDPrint( LCDHVDisplay, 6, 0, 3);
+            sprintf( LCDPhotoTransistorDisplay,    "%4u mV", LCDHV );
+            LCDPrint( LCDPhotoTransistorDisplay, 7, 0, 8);
+            //printf( "%d\n\r", ReadBrightness() );
         }
         if( updateCPM>0 ){
-            /*
             updateCPM = 0;
             sprintf( LCDCountDisplay, "%4u CPM", LCDCount );
-            LCDPrint( LCDCountDisplay, 8, 0, 5);
-            */
-            // above block comment is used for Geiger mode.
+            LCDPrint( LCDCountDisplay, 8, 1, 3);
         }
-
     }
-
     return 0;
 }
