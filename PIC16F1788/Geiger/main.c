@@ -67,6 +67,8 @@ extern unsigned int LCDPHT;  // phototransistor reading
 
 char onTime;
 
+char Display = 1;
+
 int main(int argc, char** argv) {
 
     // Some routine but necessary configurations
@@ -110,7 +112,6 @@ int main(int argc, char** argv) {
     char LCDHVDisplay[16];
     char LCDPhotoTransistorDisplay[16];
     unsigned int LCDDutyCycle;
-    
 
     ConfigLCD();
     ConfigPWM( 25, 0xff, 0 );
@@ -142,10 +143,23 @@ int main(int argc, char** argv) {
                 WriteEEPROM( 3, duty_cycle.bytes.msb );
                 WriteEEPROM( 4, duty_cycle.bytes.lsb );
             }
+            /*
             else if( strncmp(command, "!br", 3)==0 ){
                 scanf( "%u", &LCDDutyCycle );
                 ConfigPWM( LCDDutyCycle, 0xff, 0 );
-            } 
+            }
+            */
+            else if( strncmp(command, "!off", 4)==0 ){
+                Display = 0;
+                LCDClear();
+                ConfigPWM( 0, 0xff, 0 );
+            }
+            else if( strncmp(command, "!on", 3)==0 ){
+                Display = 1;
+                LCDPrint( "HV=", 3, 0, 0);
+                LCDPrint( "BR=", 3, 0, 10);
+                LCDPrint( "CPM=", 4, 1, 0);
+            }
             else if( strncmp(command, "?pr", 3)==0 ){
                 printf("%u\n\r", period.val );
             }
@@ -166,16 +180,34 @@ int main(int argc, char** argv) {
         
         if( updateHV>0 ){
             updateHV = 0;
-            sprintf( LCDHVDisplay,    "%-4u", LCDHV );
-            LCDPrint( LCDHVDisplay, 4, 0, 3);
-            sprintf( LCDPhotoTransistorDisplay,    "%-4u", LCDPHT );
-            LCDPrint( LCDPhotoTransistorDisplay, 4, 0, 13);
-            //printf( "%d\n\r", ReadBrightness() );
+            
+            if( Display>0 ){
+                sprintf( LCDHVDisplay,    "%-4u", LCDHV );
+                LCDPrint( LCDHVDisplay, 4, 0, 3);
+                sprintf( LCDPhotoTransistorDisplay,    "%-4u", LCDPHT );
+                LCDPrint( LCDPhotoTransistorDisplay, 4, 0, 13);
+                //printf( "%d\n\r", ReadBrightness() );
+            
+                // Auto-adjust LCD duty cycle
+                //
+                if( LCDPHT<10){
+                    LCDDutyCycle = 10;
+                }
+                else if( LCDPHT>1000){
+                    LCDDutyCycle = 495;
+                }
+                else{
+                    LCDDutyCycle = (LCDPHT-10)/2+10;
+                }
+                ConfigPWM( LCDDutyCycle, 0xff, 0 );
+            }
         }
         if( updateCPM>0 ){
             updateCPM = 0;
-            sprintf( LCDCountDisplay, "%-4u", LCDCount );
-            LCDPrint( LCDCountDisplay, 4, 1, 4);
+            if( Display>0 ){
+                sprintf( LCDCountDisplay, "%-4u", LCDCount );
+                LCDPrint( LCDCountDisplay, 4, 1, 4);
+            }
         }
     }
     return 0;
