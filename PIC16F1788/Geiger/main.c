@@ -204,6 +204,7 @@ int main(int argc, char** argv) {
         }
         if( updateCPM>0 ){
             updateCPM = 0;
+            printf("%u %u %u\n\r", LCDCount, LCDPHT, LCDHV);
             if( Display>0 ){
                 sprintf( LCDCountDisplay, "%-4u", LCDCount );
                 LCDPrint( LCDCountDisplay, 4, 1, 4);

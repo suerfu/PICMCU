@@ -377,8 +377,6 @@ void __interrupt() handler(){
             
             updateCPM = 1;
             LCDCount = radiationCounter;
-            
-            printf("%d\n\r", radiationCounter);
             radiationCounter = 0;
         }
         
