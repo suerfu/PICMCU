@@ -113,15 +113,15 @@ int main(int argc, char** argv) {
     
 
     ConfigLCD();
-    ConfigPWM( 0, 0xff, 0 );
+    ConfigPWM( 25, 0xff, 0 );
 
     LCDPrint( "Welcome!", 8, 0, 0);
     Delay(2000);
     LCDClear();
     
-    LCDPrint( "RT=", 3, 0, 0);
-    LCDPrint( "HV=", 3, 1, 0);
-    LCDPrint( "BR=", 3, 8, 0);
+    LCDPrint( "HV=", 3, 0, 0);
+    LCDPrint( "BR=", 3, 0, 10);
+    LCDPrint( "CPM=", 4, 1, 0);
 
     while(1){
 
@@ -166,16 +166,16 @@ int main(int argc, char** argv) {
         
         if( updateHV>0 ){
             updateHV = 0;
-            sprintf( LCDHVDisplay,    "%4u V", LCDHV );
-            LCDPrint( LCDHVDisplay, 6, 0, 3);
-            sprintf( LCDPhotoTransistorDisplay,    "%4u mV", LCDPHT );
-            LCDPrint( LCDPhotoTransistorDisplay, 7, 0, 8);
+            sprintf( LCDHVDisplay,    "%-4u", LCDHV );
+            LCDPrint( LCDHVDisplay, 4, 0, 3);
+            sprintf( LCDPhotoTransistorDisplay,    "%-4u", LCDPHT );
+            LCDPrint( LCDPhotoTransistorDisplay, 4, 0, 13);
             //printf( "%d\n\r", ReadBrightness() );
         }
         if( updateCPM>0 ){
             updateCPM = 0;
-            sprintf( LCDCountDisplay, "%4u CPM", LCDCount );
-            LCDPrint( LCDCountDisplay, 8, 1, 3);
+            sprintf( LCDCountDisplay, "%-4u", LCDCount );
+            LCDPrint( LCDCountDisplay, 4, 1, 4);
         }
     }
     return 0;

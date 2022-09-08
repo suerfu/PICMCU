@@ -79,7 +79,7 @@ extern void Delay( unsigned int );
 void LCDWrite( char cmd, char mode ){
     PORTAbits.RA6 = mode;
         // select command or data
-    //PORTAbits.RA7 = 0;
+    PORTAbits.RA7 = 0;
         // read/~write pin, should always be 0 in this application
     PORTB = cmd;
         // PORTB is the actual data to be sent
