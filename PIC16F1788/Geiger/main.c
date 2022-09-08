@@ -65,9 +65,24 @@ extern unsigned int LCDCount;
 extern unsigned int LCDHV;
 extern unsigned int LCDPHT;  // phototransistor reading
 
+extern unsigned int LCDDutyCycle;
+extern unsigned int LCDTargetDutyCycle;
+    
 char onTime;
 
 char Display = 1;
+
+unsigned int ComputeTargetLCDDutyCycle( unsigned int a ){
+    if( a<10){
+        return 10;
+    }
+    else if( a>1000){
+        return 495;
+    }
+    else{
+        return (LCDPHT-10)/2+10;
+    }
+}
 
 int main(int argc, char** argv) {
 
@@ -111,7 +126,6 @@ int main(int argc, char** argv) {
     char LCDCountDisplay[16];
     char LCDHVDisplay[16];
     char LCDPhotoTransistorDisplay[16];
-    unsigned int LCDDutyCycle;
 
     ConfigLCD();
     ConfigPWM( 25, 0xff, 0 );
@@ -190,16 +204,7 @@ int main(int argc, char** argv) {
             
                 // Auto-adjust LCD duty cycle
                 //
-                if( LCDPHT<10){
-                    LCDDutyCycle = 10;
-                }
-                else if( LCDPHT>1000){
-                    LCDDutyCycle = 495;
-                }
-                else{
-                    LCDDutyCycle = (LCDPHT-10)/2+10;
-                }
-                ConfigPWM( LCDDutyCycle, 0xff, 0 );
+                LCDTargetDutyCycle = ComputeTargetLCDDutyCycle( LCDPHT );
             }
         }
         if( updateCPM>0 ){

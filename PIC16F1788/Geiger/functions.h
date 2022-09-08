@@ -42,8 +42,11 @@ unsigned int LCDCount = 0;
 unsigned int LCDHV = 0;
 unsigned int LCDPHT = 0;
 
-unsigned char countsInterval[6] = {0,0,0,0,0,0,};
-unsigned char countsIndex = 0;
+extern unsigned int LCDDutyCycle = 0;
+extern unsigned int LCDTargetDutyCycle = 0;
+
+//unsigned char countsInterval[6] = {0,0,0,0,0,0,};
+//unsigned char countsIndex = 0;
 
 #define REFRESH_RATE_HV 2
 #define REFRESH_RATE_CPM 60
@@ -354,6 +357,17 @@ void __interrupt() handler(){
         
         if( delayMS>0 ){
             delayMS--;
+        }
+        
+        // Adjust brightness
+        //
+        if( LCDDutyCycle > LCDTargetDutyCycle ){
+            LCDDutyCycle -= 1;
+            ConfigPWM( LCDDutyCycle, 0xff, 0 );
+        }
+        else if( LCDDutyCycle < LCDTargetDutyCycle ){
+            LCDDutyCycle += 1;
+            ConfigPWM( LCDDutyCycle, 0xff, 0 );
         }
         
         if( milisecond >= 1000 ){
