@@ -61,9 +61,9 @@ extern char buzzCounter;
 
 extern char updateHV;
 extern char updateCPM;
-extern int LCDCount;
-extern int LCDHV;
-extern int LCDPHT;  // phototransistor reading
+extern unsigned int LCDCount;
+extern unsigned int LCDHV;
+extern unsigned int LCDPHT;  // phototransistor reading
 
 char onTime;
 
@@ -75,7 +75,8 @@ int main(int argc, char** argv) {
     ConfigClock();
 
     ConfigTimer1();
-    ConfigCCP1();
+    //ConfigCCP1();
+    ConfigCCP2();
     
     ConfigUSART();
     
@@ -105,13 +106,14 @@ int main(int argc, char** argv) {
 
     // Configure the LCD display module
     //
-    char LCDCountDisplay[8];
-    char LCDHVDisplay[8];
-    char LCDPhotoTransistorDisplay[8];
-    char LCDDutyCycle = 10;
+    char LCDCountDisplay[16];
+    char LCDHVDisplay[16];
+    char LCDPhotoTransistorDisplay[16];
+    unsigned int LCDDutyCycle;
+    
 
-//    ConfigLCD();
-//    ConfigPWM( LCDDutyCycle, 0, 0xff, 0 );
+    ConfigLCD();
+    ConfigPWM( 0, 0xff, 0 );
 
     LCDPrint( "Welcome!", 8, 0, 0);
     Delay(2000);
@@ -120,7 +122,6 @@ int main(int argc, char** argv) {
     LCDPrint( "RT=", 3, 0, 0);
     LCDPrint( "HV=", 3, 1, 0);
     LCDPrint( "BR=", 3, 8, 0);
-    
 
     while(1){
 
@@ -142,8 +143,8 @@ int main(int argc, char** argv) {
                 WriteEEPROM( 4, duty_cycle.bytes.lsb );
             }
             else if( strncmp(command, "!br", 3)==0 ){
-                scanf( "%d", &LCDDutyCycle );
-                ConfigPWM( LCDDutyCycle, 0, 0xff, 0 );
+                scanf( "%u", &LCDDutyCycle );
+                ConfigPWM( LCDDutyCycle, 0xff, 0 );
             } 
             else if( strncmp(command, "?pr", 3)==0 ){
                 printf("%u\n\r", period.val );
@@ -167,7 +168,7 @@ int main(int argc, char** argv) {
             updateHV = 0;
             sprintf( LCDHVDisplay,    "%4u V", LCDHV );
             LCDPrint( LCDHVDisplay, 6, 0, 3);
-            sprintf( LCDPhotoTransistorDisplay,    "%4u mV", LCDHV );
+            sprintf( LCDPhotoTransistorDisplay,    "%4u mV", LCDPHT );
             LCDPrint( LCDPhotoTransistorDisplay, 7, 0, 8);
             //printf( "%d\n\r", ReadBrightness() );
         }

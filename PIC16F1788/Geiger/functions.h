@@ -21,7 +21,7 @@ struct twobytes{
 
 union word{
     struct twobytes bytes;
-    int val;
+    unsigned int val;
 };
 
 unsigned int milisecond = 0;
@@ -38,9 +38,9 @@ char buzzCounter = 0;
 
 char updateHV = 0;
 char updateCPM = 0;
-int LCDCount = 0;
-int LCDHV = 0;
-int LCDPHT = 0;
+unsigned int LCDCount = 0;
+unsigned int LCDHV = 0;
+unsigned int LCDPHT = 0;
 
 unsigned char countsInterval[6] = {0,0,0,0,0,0,};
 unsigned char countsIndex = 0;
@@ -133,18 +133,29 @@ int getche(void){
 
 
 // Compare module for interrupt
-//
+// CCP1 module is used with PWM, so for counter, use CCP2 module.
+/*
 void ConfigCCP1(){
     CCP1CONbits.CCP1M = 0xb;     // compare with software interrupt
     CCPR1H = 1000 / 256;
     CCPR1L = 1000 % 256;
+        // calling the interrupt handler every 10000 clock ticks, that is 20Hz frequency.
+}*/
+
+void ConfigCCP2(){
+    CCP2CONbits.CCP2M = 0xb;     // compare with software interrupt
+    CCPR2H = 1000 / 256;
+    CCPR2L = 1000 % 256;
         // calling the interrupt handler every 10000 clock ticks, that is 20Hz frequency.
 }
 
 
 // PWM-related functions
 //
-void ConfigPWM( char high, char low, char period, char prescalar ){
+void ConfigPWM( unsigned int dc, char period, char prescalar ){
+    char high = ( (dc>>2) & 0xff );
+    char low = (dc & 0x3);
+
     // First disable the output
     TRISCbits.TRISC2 = 1;
     
@@ -262,7 +273,7 @@ void ConfigADC(){
 }
 
 
-int ReadADC(){
+unsigned int ReadADC(){
     ADCON0bits.GO = 1;
         // start ADC    
     union word vol;
@@ -275,7 +286,7 @@ int ReadADC(){
 }
 
 // Specific to the Geiger counter module
-int ReadHV(){
+unsigned int ReadHV(){
     if( ADCON0bits.CHS == 1 ){
         return ReadADC();
     }
@@ -287,7 +298,7 @@ int ReadHV(){
 }
 
 
-int ReadBrightness(){
+unsigned int ReadBrightness(){
     if( ADCON0bits.CHS == 0 ){
         return ReadADC();
     }
@@ -305,10 +316,16 @@ void ConfigInterrupt(){
     INTCON = 0x0;
     
     // ------------- CCP module -------------
+    //
     INTCONbits.PEIE = 0x1;
         // enable peripheral
+    /*
     PIE1 = 0x0;
     PIE1bits.CCP1IE = 0x1;
+        // enable CCP
+    */ 
+    PIE2 = 0x0;
+    PIE2bits.CCP2IE = 0x1;
         // enable CCP
     
     // ------------- IOC module -------------
@@ -319,13 +336,13 @@ void ConfigInterrupt(){
     
     // enable global interrupt
     INTCONbits.GIE = 0x1;
-        
         // this should be done in the very end
 }
 
 void __interrupt() handler(){
     
-    if( PIR1bits.CCP1IF==1 ){
+    //if( PIR1bits.CCP1IF==1 ){
+    if( PIR2bits.CCP2IF==1 ){
         milisecond++;
         
         if( buzzCounter>0 ){
@@ -365,7 +382,8 @@ void __interrupt() handler(){
             radiationCounter = 0;
         }
         
-        PIR1bits.CCP1IF = 0;
+        //PIR1bits.CCP1IF = 0;
+        PIR2bits.CCP2IF = 0;
     }
     
     else if( INTCONbits.IOCIF==1 && IOCAFbits.IOCAF3==1 ){
