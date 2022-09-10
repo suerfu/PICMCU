@@ -333,6 +333,7 @@ void ConfigInterrupt(){
     
     // ------------- IOC module -------------
     // interrupt on change
+    //
     INTCONbits.IOCIE = 0x1;
     IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
     IOCAPbits.IOCAP3 = 0x1;
@@ -400,7 +401,7 @@ void __interrupt() handler(){
     
     else if( INTCONbits.IOCIF==1 && IOCAFbits.IOCAF3==1 ){
         
-        BuzzOnOff(1);
+        BuzzOnOff(3);
         buzzCounter = buzzDuration;
         radiationCounter++;
         //countsInterval[ countsIndex ]++;

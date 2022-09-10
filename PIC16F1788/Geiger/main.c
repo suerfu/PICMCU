@@ -93,6 +93,7 @@ int main(int argc, char** argv) {
 
     ConfigTimer1();
     //ConfigCCP1();
+    //  CCP1 is outputing PWM to LCD brightness. Use CCP2 instead as time keeper.
     ConfigCCP2();
     
     ConfigUSART();
@@ -108,11 +109,17 @@ int main(int argc, char** argv) {
     union word period;
     period.bytes.msb = ReadEEPROM(1);
     period.bytes.lsb = ReadEEPROM(2);
+    if( period.val>65500 ){
+        period.val = 900;
+    }
+    // Above is default value when programming the board.
     
     union word duty_cycle;
     duty_cycle.bytes.msb = ReadEEPROM(3);
     duty_cycle.bytes.lsb = ReadEEPROM(4);
-    
+    if( duty_cycle.val>65500 ){
+        duty_cycle.val = 600;
+    }    
     ConfigPSMC1( period.bytes.msb, period.bytes.lsb, duty_cycle.bytes.msb, duty_cycle.bytes.lsb, 0, 0 );
     
     // Setup interrupts. Since LCD needs counter, this has to happen before LCD configuration
@@ -134,7 +141,7 @@ int main(int argc, char** argv) {
     Delay(2000);
     LCDClear();
     
-    LCDPrint( "HV=", 3, 0, 0);
+    LCDPrint( "HV=", 3, 0, 1);
     LCDPrint( "BR=", 3, 0, 10);
     LCDPrint( "CPM=", 4, 1, 0);
 
@@ -158,6 +165,8 @@ int main(int argc, char** argv) {
                 WriteEEPROM( 4, duty_cycle.bytes.lsb );
             }
             /*
+            // Code for interactively adjust LCD brightness.
+            // commented out since auto-adjustment has been implemented.
             else if( strncmp(command, "!br", 3)==0 ){
                 scanf( "%u", &LCDDutyCycle );
                 ConfigPWM( LCDDutyCycle, 0xff, 0 );
@@ -170,7 +179,7 @@ int main(int argc, char** argv) {
             }
             else if( strncmp(command, "!on", 3)==0 ){
                 Display = 1;
-                LCDPrint( "HV=", 3, 0, 0);
+                LCDPrint( "HV=", 3, 0, 1);
                 LCDPrint( "BR=", 3, 0, 10);
                 LCDPrint( "CPM=", 4, 1, 0);
             }
@@ -197,7 +206,7 @@ int main(int argc, char** argv) {
             
             if( Display>0 ){
                 sprintf( LCDHVDisplay,    "%-4u", LCDHV );
-                LCDPrint( LCDHVDisplay, 4, 0, 3);
+                LCDPrint( LCDHVDisplay, 4, 0, 4);
                 sprintf( LCDPhotoTransistorDisplay,    "%-4u", LCDPHT );
                 LCDPrint( LCDPhotoTransistorDisplay, 4, 0, 13);
                 //printf( "%d\n\r", ReadBrightness() );
@@ -209,11 +218,11 @@ int main(int argc, char** argv) {
         }
         if( updateCPM>0 ){
             updateCPM = 0;
-            printf("%u %u %u\n\r", LCDCount, LCDPHT, LCDHV);
+            printf("%u %u %u\n\r", LCDCount, LCDHV, LCDPHT);
             if( Display>0 ){
                 sprintf( LCDCountDisplay, "%-4u", LCDCount );
                 LCDPrint( LCDCountDisplay, 4, 1, 4);
-            }
+            }            
         }
     }
     return 0;
