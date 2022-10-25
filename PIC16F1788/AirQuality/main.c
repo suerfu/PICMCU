@@ -39,13 +39,29 @@
 int main(int argc, char** argv) {
 
     ConfigPort();
+    
     ConfigClock();
+    
+    ConfigTimer1();
+    Timer1On();
+    
+    ConfigCCP2();
+        
     ConfigUSART();
+    
+    ConfigADC();
 
+    ConfigInterrupt();
+
+    SensorPower(1);
+    
     while(1){
-        SetVOCIndicator(1);
-        SetVOCIndicator(4);
-        SetVOCIndicator(4);
+
+//        printf("&d %f %f %f %f\r\n", ReadTemperature(), ReadPressure(), ReadHumidity(), ReadLuminosity() );
+        
+//        SetVOCIndicator(1);
+//        SetVOCIndicator(4);
+//        SetVOCIndicator(4);
 //        SetVOCIndicator(2);
 //        SetVOCIndicator(3);
 
