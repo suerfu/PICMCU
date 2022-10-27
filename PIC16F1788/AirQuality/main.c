@@ -36,11 +36,16 @@
 /*
  * 
  */
+
+extern char print_output;
+
 int main(int argc, char** argv) {
 
     ConfigPort();
     
     ConfigClock();
+    
+    ConfigTimer0();
     
     ConfigTimer1();
     Timer1On();
@@ -52,11 +57,14 @@ int main(int argc, char** argv) {
     ConfigADC();
 
     ConfigInterrupt();
-
-    SensorPower(1);
+   
+    printf("Welcome!\n\r");
     
     while(1){
-
+        if ( print_output==1 ){
+            printf("%f %f %f %f %f %f\r\n", ReadTemperature(), ReadPressure(), ReadHumidity(), ReadLuminosity(), ReadCO2(), ReadVOC() );
+            print_output = 0;
+        }
 //        printf("&d %f %f %f %f\r\n", ReadTemperature(), ReadPressure(), ReadHumidity(), ReadLuminosity() );
         
 //        SetVOCIndicator(1);

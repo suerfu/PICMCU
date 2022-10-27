@@ -97,6 +97,25 @@ void ConfigClock(){
     while( (OSCSTAT & 0x58) != 0x58 ){;}
 }
 
+
+// Timer 0 is an 8-bit timer that runs on instruction clock + optional pre-scalar
+//
+void ConfigTimer0(){
+    OPTION_REGbits.T0CS = 0;
+        // system's instruction clock
+        // 1 ==> external T0CKI pin
+    OPTION_REGbits.PSA = 0;
+        // enable precalar
+    OPTION_REGbits.PS = 0b111;
+        // prescalar set to 256
+    OPTION_REGbits.PS = 0b101;
+        // prescalar set to 64
+    OPTION_REGbits.PS = 0b100;
+        // prescalar set to 16
+
+}
+
+
 void ConfigTimer1(){
     T1CONbits.TMR1CS = 0x0;
         // clock source is instruction clock Fosc/4
@@ -253,7 +272,36 @@ float ReadLuminosity(){
     return ratio/4095;
 }
 
+union word co2_timer;
+union word voc_timer;
+union word tmr0_counter;
 
+float ReadCO2(){
+    if( co2_timer.val == 0 )
+        return -1;
+    float dc = co2_timer.val;
+    dc /= 8333.3;
+    return 4000*(dc-0.55)+400;
+}
+
+float ReadVOC(){
+    if ( voc_timer.val == 0 )
+        return -1;
+    float dc = voc_timer.val;
+    dc /= 8333.3;
+    return 2500*(dc-0.05);
+}
+
+void SetVOC(){
+    
+    // reset relevant values
+    co2_timer.val = 0;
+    voc_timer.val = 0;
+    tmr0_counter.val = 0;
+    
+    // enable interrupt on the input pin.
+    IOCAPbits.IOCAP4 = 1;
+}
 
 // Interrupt-related functions
 //
@@ -276,19 +324,46 @@ void ConfigInterrupt(){
     // ------------- IOC module -------------
     // interrupt on change
     //
-    //INTCONbits.IOCIE = 0x1;
-    //IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
-    //IOCAPbits.IOCAP3 = 0x1;
+    INTCONbits.IOCIE = 1;
+    IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
+    
+    //IOCAPbits.IOCAP4 = 1;
+    //IOCANbits.IOCAN4 = 1;
+        // VOC reading
+        // this will be enabled in the read function
+    
+    IOCBPbits.IOCBP6 = 1;
+    IOCBPbits.IOCBP7 = 1;
+        // user interface
     
     // enable global interrupt
-    INTCONbits.GIE = 0x1;
+    INTCONbits.GIE = 1;
         // this should be done in the very end
 }
 
+/*
+union word tmr_tmp;
+unsigned int voc_timer[2];
+char index=0;
+*/
+
+char print_output = 0;
+
 void __interrupt() handler(){
     
+    
+    // first increment timer 0.
+    // TMR0 is not always on
+    //
+    if( INTCONbits.TMR0IF==1 ){
+        tmr0_counter.bytes.msb ++;
+        INTCONbits.TMR0IF = 0;
+        //putch('a');
+            // clear the interrupt flag
+    }
+    
     if( PIR2bits.CCP2IF==1 ){
-        
+
         milisecond++;
      
         if( milisecond >= 1000 ){
@@ -296,13 +371,82 @@ void __interrupt() handler(){
             second++;
             if( second%2==0 ){
                 SensorPower(1);
-                printf("%u %f %f %f %f\r\n", ReadADCChannel(0), ReadTemperature(), ReadPressure(), ReadHumidity(), ReadLuminosity() );
-                //printf("%d %u %u %u %u\r\n", second, ReadADCChannel(0), ReadADCChannel(1), ReadADCChannel(2), ReadADCChannel(3) );
+                SetVOC();
+            }
+            if( second%2==1 ){
+                print_output = 1;
             }
         }
         
-        //PIR1bits.CCP1IF = 0;
         PIR2bits.CCP2IF = 0;
+    }
+    if( INTCONbits.IOCIF == 1 ){
+
+        if ( IOCAFbits.IOCAF4 == 1 ){
+            
+            IOCAFbits.IOCAF4 = 0;
+
+            // Rising edge from VOC, could be CO2 or VOC
+            // it can also be 1st event in sequence or second in sequence
+            if (IOCAPbits.IOCAP4 == 1 ){
+
+                // No matter what, if a rising pulse arrives, start/reset the timer.
+                TMR0 = 0;
+                tmr0_counter.val = 0;
+                
+                // if this is the first pulse after VOC sensor is turned on, interrupt needs to be configured to increment on TMR0 overflow 
+                if( co2_timer.val==0 && voc_timer.val==0 ){
+                    INTCONbits.TMR0IE = 1;
+                }
+
+                // configure to detect the falling pulse
+                IOCAPbits.IOCAP4 = 0;
+                IOCANbits.IOCAN4 = 1;
+            }
+            
+            // Falling edge from VOC
+            // could be end of first event or end of entire acquisition
+            else if (IOCANbits.IOCAN4 == 1 ){
+                
+                tmr0_counter.bytes.lsb = TMR0;
+                INTCONbits.TMR0IE = 0;
+                    // capture the end of the pulse and momentarily disable the timer
+                
+                // Assign measurement values
+                // Period 33.3 ms
+                // Clock 8MHz/256 or 8MHz / PS
+                // CO2 is 55% to 95%
+                // VOC is 5% to 45%
+                if( /*tmr0_counter.val>207 &&*/ tmr0_counter.val<4166 ){
+                    voc_timer.val = tmr0_counter.val;
+                    //printf("voc %u\n\r", voc_timer.val);
+                }
+                else if( tmr0_counter.val>4166 /*&& tmr0_counter.val<4096*/ ){
+                    co2_timer.val = tmr0_counter.val;
+                    //printf("co2 %u\n\r", co2_timer.val);
+                }
+                
+                IOCANbits.IOCAN4 = 0;
+                
+                // only one value is read, reconfigure for positive edge trigger
+                if( co2_timer.val==0 || voc_timer.val==0 ){
+                    IOCAPbits.IOCAP4 = 1;
+                }
+                // if both values have been acquired, disable IOC
+                else{
+                    IOCAPbits.IOCAP4 = 0;
+                        // both data have been taken
+                }
+            }
+        }
+        if ( IOCBFbits.IOCBF6 == 1 ){
+            IOCBFbits.IOCBF6 = 0;
+            printf("6\n\r");
+        }
+        if ( IOCBFbits.IOCBF7 == 1 ){
+            IOCBFbits.IOCBF7 = 0;
+            printf("7\n\r");
+        }
     }
     return;
 }
