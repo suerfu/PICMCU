@@ -20,7 +20,8 @@ unsigned int minutes = 0;
 //
 void ConfigPort(){
     // Default on startup
-    PORTA = PORTB = PORTC = 0;
+    PORTA = PORTC = 0;
+    PORTB = 0b01;
     
     TRISA = TRISC = 0xff;
     TRISB = 0xfc;   // 0 for HV power, 1 for sensor power
@@ -139,7 +140,6 @@ void NixiePower( char a ){
     if( a>0 ){
         PORTBbits.RB0 = 0;
     }
-    // power off peripherals to save power and service time
     else{
         PORTBbits.RB0 = 1;
     }
