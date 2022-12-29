@@ -61,24 +61,34 @@ int main(int argc, char** argv) {
     
     SensorPower(1);
     
+    char command[16];
+        // character string to receive inputs
+    
+    char dc_temperature;
+        // duty cycle for temperature PWM
+    char dc_humidity;
+        // duty cycle for humidity PWM
+    
     while(1){
-        if ( print_output==1 ){
-            printf("%f %f %f\r\n", ReadTemperature(), ReadHumidity(), ReadPositiveReference() );
+//        if ( print_output==1 ){
+//            printf("%f %f %f\r\n", ReadTemperature(), ReadHumidity(), ReadPositiveReference() );
             //printf("%u %u %u\r\n", ReadADCChannel(0), ReadADCChannel(1), ReadADCChannel(3) );
-            print_output = 0;
-        }
-//        printf("&d %f %f %f %f\r\n", ReadTemperature(), ReadPressure(), ReadHumidity(), ReadLuminosity() );
+//            print_output = 0;
+//        }
+        if( PIR1bits.RCIF!=0 ){
+            
+            scanf( "%s", command );
         
-//        SetVOCIndicator(1);
-//        SetVOCIndicator(4);
-//        SetVOCIndicator(4);
-//        SetVOCIndicator(2);
-//        SetVOCIndicator(3);
-
-        //printf("Hello World!");
-        //PORTAbits.RA5 = 1;
-        //putch('a');
-        //PORTAbits.RA5 = 0;
+            if( strncmp(command, "!tmp", 4)==0 ){
+                scanf( "%hhu", &dc_temperature );
+                SetTemperaturePWM( dc_temperature );
+            }
+            else if( strncmp(command, "!hum", 4)==0 ){
+                scanf( "%hhu", &dc_humidity );
+                SetHumidityPWM( dc_humidity );
+                //WriteEEPROM( 3, duty_cycle.bytes.msb );
+            }
+        }
     }
 
     return 0;

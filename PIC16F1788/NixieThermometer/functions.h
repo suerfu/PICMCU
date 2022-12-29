@@ -360,6 +360,88 @@ void __interrupt() handler(){
     return;
 }
 
+// PSMC 
+// Higher performance & resolution PWM module.
+// Procedure:
+//      set period, duty cycle and phase (start of active pulse)
+//      set PSMC clock source
+//      set output port and polarity, enable output
+//          each port A--F can be configured here
+//      source for event (what causes start of a new period and begin and end of an active pulse)
+//      load the LD bit to push the register values through the buffer and enable digital drive
+//    
+void ConfigPSMC1(){
+
+    // Period, duty cycle and phase
+    // Most values will be default and won't be changed in the program.
+    
+    // Period
+    PSMC1PRH = 0;
+    PSMC1PRL = 0xff;
+        // 8-bit resolution
+    
+    // Duty cycle
+    PSMC1DCH = 0;
+    PSMC1DCL = 0;
+    
+    // Phase/start of active pulse
+    PSMC1PHH = 0;
+    PSMC1PHL = 0;
+
+    // Set PSMC clock
+    PSMC1CLK = 0x00;
+    
+    // Output port, polarity and enable output
+    PSMC1STR0 = 0xff;        
+    PSMC1POLbits.P1POLB = 0;    // 0 for active high
+    PSMC1OENbits.P1OEB = 1;    // output enable bit
+    
+    // Set source of event for period, phase and duty cycle counter
+    PSMC1PRS = 0x1;
+    PSMC1PHS = 0x1;
+    PSMC1DCS = 0x1;
+    
+    // enable steering and load the values, and enable digital driver
+    PSMC1CON = 0b11000000;
+    
+    TRISCbits.TRISC1 = 0;
+}
+
+void ConfigPSMC3(){
+    // Period
+    PSMC3PRH = 0;
+    PSMC3PRL = 0xff;    
+    // Duty cycle
+    PSMC3DCH = 0;
+    PSMC3DCL = 0;
+    // Phase/start of active pulse
+    PSMC3PHH = 0;
+    PSMC3PHL = 0;
+    // Set PSMC clock
+    PSMC3CLK = 0x00;
+    // Output port, polarity and enable output
+    PSMC3STR0 = 0xff;
+    PSMC3POLbits.P3POLB = 0;    // 0 for active high
+    PSMC3OENbits.P3OEB = 1;    // output enable bit
+    // Set source of event for period, phase and duty cycle counter
+    PSMC3PRS = 0x1;
+    PSMC3PHS = 0x1;
+    PSMC3DCS = 0x1;
+    // enable steering and load the values, and enable digital driver
+    PSMC3CON = 0b11000000;
+    TRISCbits.TRISC2 = 0;
+}
+
+void SetTemperaturePWM( char DCL ){
+    PSMC1DCL = DCL;
+    PSMC1CON = 0b11000000;
+        // Load the values
+}
+
+void SetHumidityPWM( char DCL ){
+    PSMC3DCL = DCL;
+    PSMC3CON = 0b11000000;
+}
 
 #ifdef	__cplusplus
 }
