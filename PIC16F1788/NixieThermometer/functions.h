@@ -13,8 +13,8 @@ extern "C" {
 #endif
 
 unsigned int milisecond = 0;
-unsigned int second = 0;
-unsigned int minutes = 0;
+unsigned char second = 0;
+unsigned int minute = 0;
 
 // IO operations
 //
@@ -224,21 +224,17 @@ float ReadHumidityPWM(){
 // Interrupt-related functions
 //
 void ConfigInterrupt(){   
+
     INTCON = 0x0;
     
     // ------------- CCP module -------------
     //
     INTCONbits.PEIE = 0x1;
         // enable peripheral
+    PIE1 = 0x0;
+    PIE1bits.CCP1IE = 0x1;
+        // enable CCP1
     /*
-    PIE1 = 0x0;
-    PIE1bits.CCP1IE = 0x1;
-        // enable CCP
-    */ 
-    PIE1 = 0x0;
-    PIE1bits.CCP1IE = 0x1;
-        // enable CCP2
-    
     // ------------- IOC module -------------
     // interrupt on change
     //
@@ -253,111 +249,10 @@ void ConfigInterrupt(){
     IOCBPbits.IOCBP6 = 1;
     IOCBPbits.IOCBP7 = 1;
         // user interface
-    
+    */    
     // enable global interrupt
     INTCONbits.GIE = 1;
         // this should be done in the very end
-}
-
-
-char print_output = 0;
-
-void __interrupt() handler(){  
- /*   
-    // first increment timer 0.
-    // TMR0 is not always on
-    //
-    if( INTCONbits.TMR0IF==1 ){
-        tmr0_counter.bytes.msb ++;
-        INTCONbits.TMR0IF = 0;
-        //putch('a');
-            // clear the interrupt flag
-    }
-*/
-    if( PIR1bits.CCP1IF==1 ){
-
-        milisecond++;
-     
-        if( milisecond >= 1000 ){
-            milisecond = 0;
-            second++;
-            if( second%2==1 ){
-                print_output = 1;
-            }
-        }        
-        PIR1bits.CCP1IF = 0;
-    }
-    /*
-    if( INTCONbits.IOCIF == 1 ){
-
-        if ( IOCAFbits.IOCAF4 == 1 ){
-            
-            IOCAFbits.IOCAF4 = 0;
-
-            // Rising edge from VOC, could be CO2 or VOC
-            // it can also be 1st event in sequence or second in sequence
-            if (IOCAPbits.IOCAP4 == 1 ){
-
-                // No matter what, if a rising pulse arrives, start/reset the timer.
-                TMR0 = 0;
-                tmr0_counter.val = 0;
-                
-                // if this is the first pulse after VOC sensor is turned on, interrupt needs to be configured to increment on TMR0 overflow 
-                if( co2_timer.val==0 && voc_timer.val==0 ){
-                    INTCONbits.TMR0IE = 1;
-                }
-
-                // configure to detect the falling pulse
-                IOCAPbits.IOCAP4 = 0;
-                IOCANbits.IOCAN4 = 1;
-            }
-            
-            // Falling edge from VOC
-            // could be end of first event or end of entire acquisition
-            else if (IOCANbits.IOCAN4 == 1 ){
-                
-                tmr0_counter.bytes.lsb = TMR0;
-                INTCONbits.TMR0IE = 0;
-                    // capture the end of the pulse and momentarily disable the timer
-                
-                // Assign measurement values
-                // Period 33.3 ms
-                // Clock 8MHz/256 or 8MHz / PS
-                // CO2 is 55% to 95%
-                // VOC is 5% to 45%
-                if( tmr0_counter.val<4166 ){
-                    voc_timer.val = tmr0_counter.val;
-                    //printf("voc %u\n\r", voc_timer.val);
-                }
-                else if( tmr0_counter.val>4166 ){
-                    co2_timer.val = tmr0_counter.val;
-                    //printf("co2 %u\n\r", co2_timer.val);
-                }
-                
-                IOCANbits.IOCAN4 = 0;
-                
-                // only one value is read, reconfigure for positive edge trigger
-                if( co2_timer.val==0 || voc_timer.val==0 ){
-                    IOCAPbits.IOCAP4 = 1;
-                }
-                // if both values have been acquired, disable IOC
-                else{
-                    IOCAPbits.IOCAP4 = 0;
-                        // both data have been taken
-                }
-            }
-        }
-        if ( IOCBFbits.IOCBF6 == 1 ){
-            IOCBFbits.IOCBF6 = 0;
-            printf("6\n\r");
-        }
-        if ( IOCBFbits.IOCBF7 == 1 ){
-            IOCBFbits.IOCBF7 = 0;
-            printf("7\n\r");
-        }
-    }
-    */
-    return;
 }
 
 // PSMC 
@@ -441,6 +336,95 @@ void SetTemperaturePWM( char DCL ){
 void SetHumidityPWM( char DCL ){
     PSMC3DCL = DCL;
     PSMC3CON = 0b11000000;
+}
+
+unsigned char CalculateTemperaturePWM( float temp ){
+    if( temp<-3 ){
+        return 0;
+    }
+    else if(temp>40){
+        return 219;
+    }
+    else{
+        return 16.6+5.04*temp;
+        // coefficients determined by calibration
+    }
+}
+
+unsigned char CalculateHumidityPWM( float hum ){
+    if( hum<0 ){
+        return 0;
+    }
+    else if(hum>100){
+        return 0;
+    }
+    else{
+        return 19.8+2.08*hum;
+        // coefficients determined by calibration
+    }
+}
+
+
+// A short function to increment or decrement current value towards target value
+// This is to ensure the Nixie column lights up from the bottom.
+unsigned char AdjustPWM( unsigned char target, unsigned char cur){
+    if( cur<target ){
+        return cur+1;
+    }
+    else if( cur>target ){
+        return cur-1;
+    }
+    else return cur;
+}
+
+
+char print_output = 0;
+
+unsigned int wait_time = 0;
+
+unsigned char display = 0;
+    // If >0, the nixie column should be lit up
+unsigned char measure = 0;
+
+unsigned char cur_temp_pwm = 0;
+unsigned char target_temp_pwm = 0;
+unsigned char cur_hum_pwm = 0;
+unsigned char target_hum_pwm = 0;
+
+void __interrupt() handler(){  
+
+    if( PIR1bits.CCP1IF==1 ){
+
+        // increment software timer
+        milisecond++;
+        if( milisecond >= 1000 ){
+            milisecond = 0;
+            second++;
+            if( second >= 60 ){
+                second = 0;
+                minute++;
+            }
+        }
+            
+        if( (display>0) && (milisecond%20 == 0) ){
+            cur_temp_pwm = AdjustPWM( target_temp_pwm, cur_temp_pwm );
+            cur_hum_pwm = AdjustPWM( target_hum_pwm, cur_hum_pwm );
+            SetTemperaturePWM( cur_temp_pwm );
+            SetHumidityPWM( cur_hum_pwm );
+        }
+            
+        if( (display>0) && (milisecond==0) && (second==10) ){
+            measure = 1;
+        }
+        
+        if( wait_time>0 ){
+            wait_time -= 1;
+        }
+        
+        PIR1bits.CCP1IF = 0;
+    }
+    
+    return;
 }
 
 #ifdef	__cplusplus
