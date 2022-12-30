@@ -12,9 +12,36 @@
 extern "C" {
 #endif
 
+// ****************************************************************************
+// Some global variables:
+// ****************************************************************************
+
+// Time keeping
 unsigned int milisecond = 0;
 unsigned char second = 0;
 unsigned int minute = 0;
+
+unsigned int wait_time = 0;
+
+unsigned int time_to_sleep = 3;     // time in minutes before device enters sleep mode
+
+// Important flags
+unsigned char calibration = 0;  // calibration mode
+unsigned char display = 0;      // if true, the nixie column should be lit up
+unsigned char measure = 0;      // if true, device makes a measurement and resets it
+
+// Parameters
+#define SAMPLE_INTERVAL 2
+
+// Dynamic variables for smooth control of the light column
+unsigned char cur_temp_pwm = 0;     // current temperature PWM value
+unsigned char target_temp_pwm = 0;  // target/desired temperature PWM value
+unsigned char cur_hum_pwm = 0;
+unsigned char target_hum_pwm = 0;
+
+// ****************************************************************************
+// Configuration functions.
+// ****************************************************************************
 
 // IO operations
 //
@@ -39,7 +66,7 @@ void ConfigClock(){
 }
 
 // Timer 0 is an 8-bit timer that runs on instruction clock + optional pre-scalar
-//
+/*
 void ConfigTimer0(){
     OPTION_REGbits.T0CS = 0;
         // system's instruction clock
@@ -52,8 +79,8 @@ void ConfigTimer0(){
         // prescalar set to 64
     OPTION_REGbits.PS = 0b100;
         // prescalar set to 16
-
 }
+*/
 
 void ConfigTimer1(){
     T1CONbits.TMR1CS = 0x0;
@@ -83,9 +110,6 @@ void ConfigCCP1(){
 // Configured for 9600 8N1 mode.
 //
 void ConfigUSART(){
-    //PORTC |= 0xc0;
-        // added to fix the issue of USB bridge cannot pull RX pin of the MCU completely high.
-        // note: this could be a hardware bug.
     TRISCbits.TRISC7 = 1;  // pin 7 for input
     TRISCbits.TRISC6 = 0;   // pin 6 for output
     TXSTA = 0x24;
@@ -112,8 +136,8 @@ int getche(void){
 }
 
 //==================================================================================================
-
 // Analog ADC-related functions
+//==================================================================================================
 
 struct twobytes{
     unsigned char lsb;
@@ -124,26 +148,6 @@ union word{
     struct twobytes bytes;
     unsigned int val;
 };
-
-void SensorPower( char a ){
-    // if >0, power up peripheral sensors directly
-    if( a>0 ){
-        PORTBbits.RB1 = 1;
-    }
-    // power off peripherals to save power and service time
-    else{
-        PORTBbits.RB1 = 0;
-    }
-}
-
-void NixiePower( char a ){
-    if( a>0 ){
-        PORTBbits.RB0 = 0;
-    }
-    else{
-        PORTBbits.RB0 = 1;
-    }
-}
 
 void ConfigADC(){
     
@@ -173,7 +177,6 @@ void ConfigADC(){
     // enable ADC
     ADCON0bits.ADON = 1;
 }
-
 
 unsigned int ReadADC(){
     ADCON0bits.GO = 1;
@@ -221,52 +224,12 @@ float ReadHumidityPWM(){
 }
 
 
-// Interrupt-related functions
-//
-void ConfigInterrupt(){   
+//==================================================================================================
+// PSMC and output control
+//==================================================================================================
 
-    INTCON = 0x0;
-    
-    // ------------- CCP module -------------
-    //
-    INTCONbits.PEIE = 0x1;
-        // enable peripheral
-    PIE1 = 0x0;
-    PIE1bits.CCP1IE = 0x1;
-        // enable CCP1
-    /*
-    // ------------- IOC module -------------
-    // interrupt on change
-    //
-    INTCONbits.IOCIE = 1;
-    IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
-    
-    //IOCAPbits.IOCAP4 = 1;
-    //IOCANbits.IOCAN4 = 1;
-        // VOC reading
-        // this will be enabled in the read function
-    
-    IOCBPbits.IOCBP6 = 1;
-    IOCBPbits.IOCBP7 = 1;
-        // user interface
-    */    
-    // enable global interrupt
-    INTCONbits.GIE = 1;
-        // this should be done in the very end
-}
-
-// PSMC 
-// Higher performance & resolution PWM module.
-// Procedure:
-//      set period, duty cycle and phase (start of active pulse)
-//      set PSMC clock source
-//      set output port and polarity, enable output
-//          each port A--F can be configured here
-//      source for event (what causes start of a new period and begin and end of an active pulse)
-//      load the LD bit to push the register values through the buffer and enable digital drive
-//    
 void ConfigPSMC1(){
-
+    
     // Period, duty cycle and phase
     // Most values will be default and won't be changed in the program.
     
@@ -282,7 +245,7 @@ void ConfigPSMC1(){
     // Phase/start of active pulse
     PSMC1PHH = 0;
     PSMC1PHL = 0;
-
+    
     // Set PSMC clock
     PSMC1CLK = 0x00;
     
@@ -297,9 +260,10 @@ void ConfigPSMC1(){
     PSMC1DCS = 0x1;
     
     // enable steering and load the values, and enable digital driver
-    PSMC1CON = 0b11000000;
+    PSMC1CON = 0b11000000;  
     
-    TRISCbits.TRISC1 = 0;
+    // disable the tri-state
+    TRISCbits.TRISC1 = 0;   
 }
 
 void ConfigPSMC3(){
@@ -338,6 +302,7 @@ void SetHumidityPWM( char DCL ){
     PSMC3CON = 0b11000000;
 }
 
+// Function to calculate desired PWM corresponding to the float temperature
 unsigned char CalculateTemperaturePWM( float temp ){
     if( temp<-3 ){
         return 0;
@@ -351,6 +316,7 @@ unsigned char CalculateTemperaturePWM( float temp ){
     }
 }
 
+// Function to calculate desired PWM corresponding to the float humifity
 unsigned char CalculateHumidityPWM( float hum ){
     if( hum<0 ){
         return 0;
@@ -363,7 +329,6 @@ unsigned char CalculateHumidityPWM( float hum ){
         // coefficients determined by calibration
     }
 }
-
 
 // A short function to increment or decrement current value towards target value
 // This is to ensure the Nixie column lights up from the bottom.
@@ -378,18 +343,34 @@ unsigned char AdjustPWM( unsigned char target, unsigned char cur){
 }
 
 
-char print_output = 0;
+//==================================================================================================
+// Interrupt-related functions
+//==================================================================================================
 
-unsigned int wait_time = 0;
+void ConfigInterrupt(){   
 
-unsigned char display = 0;
-    // If >0, the nixie column should be lit up
-unsigned char measure = 0;
+    INTCON = 0x0;
+    
+    // ------------- CCP module -------------
+    //
+    INTCONbits.PEIE = 0x1;
+        // enable peripheral
+    PIE1 = 0x0;
+    PIE1bits.CCP1IE = 0x1;
+        // enable CCP1
+    
+    // ------------- IOC module -------------
+    // interrupt on change
+    //
+    INTCONbits.IOCIE = 1;
+    IOCAP = IOCAN = IOCBP = IOCBN = IOCCP = IOCCN = 0;
+    IOCCPbits.IOCCP0 = 1;   // user interrupt via button
+        
+    // enable global interrupt
+    INTCONbits.GIE = 1;     // this should be done in the very end
+}
 
-unsigned char cur_temp_pwm = 0;
-unsigned char target_temp_pwm = 0;
-unsigned char cur_hum_pwm = 0;
-unsigned char target_hum_pwm = 0;
+void Initialize();
 
 void __interrupt() handler(){  
 
@@ -413,7 +394,7 @@ void __interrupt() handler(){
             SetHumidityPWM( cur_hum_pwm );
         }
             
-        if( (display>0) && (milisecond==0) && (second==10) ){
+        if( (display>0) && (milisecond==0) && (second==SAMPLE_INTERVAL) ){
             measure = 1;
         }
         
@@ -424,9 +405,62 @@ void __interrupt() handler(){
         PIR1bits.CCP1IF = 0;
     }
     
+    if( INTCONbits.IOCIF==1 && IOCCFbits.IOCCF0==1 ){
+        Initialize();
+        IOCCFbits.IOCCF0 = 0;
+    }
+    
     return;
 }
 
+// Turns the power of sensors on and off
+//
+void SensorPower( char a ){
+    // if >0, power up peripheral sensors directly
+    if( a>0 ){
+        PORTBbits.RB1 = 1;
+    }
+    // power off peripherals to save power and service time
+    else{
+        PORTBbits.RB1 = 0;
+    }
+}
+
+// Returns the status of the sensor power
+char GetSensorPower(){
+    return PORTBbits.RB1;
+}
+
+// Turns the high voltage for Nixie tube on and off
+void NixiePower( char a ){
+    if( a>0 ){
+        PORTBbits.RB0 = 0;
+    }
+    else{
+        PORTBbits.RB0 = 1;
+    }
+}
+
+// Initialize global variables used in this program
+//
+void Initialize(){
+
+    // time-related
+    milisecond = 0;
+    second = 0;
+    minute = 0;
+    
+    // display-related
+    display = 1;    // if true, Nixie tube will be driven
+    measure = 1;    // if true, Nixie tube will be updated with measurement values
+    calibration = 0;    // by default, not in calibration mode
+    
+    cur_temp_pwm = 0;
+    cur_hum_pwm = 0;
+    
+    SensorPower(1);
+    NixiePower(1);
+}
 #ifdef	__cplusplus
 }
 #endif
