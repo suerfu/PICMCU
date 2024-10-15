@@ -12,81 +12,120 @@
 extern "C" {
 #endif
 
-// Set default status of some ports that won't be separately configured
+#include "mssp.h"
+
+
+// Configure RGB LED - initial state
 //
-void ConfigPort(){
+void ConfigLED(){    
+    // hardware address on the I2C bus
+    char addr[] = {0xc2, 0xc4};
+    char n_addr = sizeof(addr)/sizeof(addr[0]);
     
-    // Port B, 0-5 Nixie digits, 6 - RTC input, 7 - HV shutdown signal (low to enable)
-    TRISB = 0x40;
-    PORTBbits.RB7 = 1;
-    ANSELB = 0;   // disable analog functions on 
+    // common instructions to be carried out
+    // set maximum blink rate on both rates
+    // set PWM on both rates to be MAX -> which is LED is off since LED is driven indirectly by MOSFET
+    // 1st driver should set 7th LED driver to use PWM0 -> 10, everything else 00 -> input to LED is high
+    // 2st driver should set 5th to use PWM0 -> 10 and 4th LED driver to use PWM1 -> 11, everything else 00 -> input to LED is high
+    char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x80}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x0b } };
+    char n_instr = sizeof(instr[0])/sizeof(instr[0][0]);
     
-    // Port A, 0-2 for analog input, 3 for digital output, 4-7 for digital input
-    TRISA = 0xf7;    // only port3 is for digital output
-    PORTAbits.RA3 = 0; // PortA-3 = power pin for analog sensors
-    
-    // Port C will be separately configured
+    for( char i=0; i<n_addr; i++){
+        
+        printf("Addressing %x\n\r", addr[i] );
+        
+        I2C_Master_Start();
+
+        char a = I2C_Master_Write( addr[i] & 0xfe );
+
+        if( a != 0 ){
+            printf("Device not found at %x\n\r", addr[i]);
+            I2C_Master_Stop();
+            continue;
+        }
+        else{
+            printf("Device found\n\r");
+        }
+        
+        for( char j=0; j<n_instr; j++){
+            char a = I2C_Master_Write( instr[i][j] );
+            printf("Writing data %x\n\r", instr[i][j] );
+            if( a!=0 ){
+                printf("%d-th instruction of %x not acknowledged\n\r", j, instr[j] );
+            }    
+        }
+        
+        I2C_Master_Stop();
+    }
 }
 
-// Configure clock for 32 MHz operation
+
+// Returns the current LED status hold in the LED driver chip
+// index = 0, returns the byte for lower half; = 1 for upper half
 //
-void ConfigClock(){
+char ReadLEDStatus( char addr, char index ){
     
-    OSCCONbits.SCS = 0x0;
-    OSCCONbits.SPLLEN = 1;
-    OSCCONbits.IRCF = 0xf; // 8 MHz internal clock, later PLL to 32 MHz
+    I2C_Master_Start();
+    char a = I2C_Master_Write( addr | 0x1 );
+            
+    if( a != 0 ){
+        printf("Device not found at %x\n\r", addr | 0x1 );
+        I2C_Master_Stop();
+        return 0;
+    }
     
-    while( (OSCSTAT & 0x90) != 0x90 ){;}
-        // Test if stable
-        // OSCSTAT is: T1OSC, PLL, OST-START-UP, HF-ready, HF-locked, MF-ready, LF-ready, HF-stable
+    a = I2C_Master_Write( 0x5 + index  );
+    if( a!=0 ){
+        printf( "Failed to read LED driver register %x\n\r", 0x5+index );
+    }
+
+    a = I2C_Master_Read();
+
+    I2C_Master_Stop();
+    
+    return a;
 }
 
-
-void ConfigUSART(){
+// Configure RGB LED
+//
+void ConfigRLED( char pwm, char power ){
+        
+    // hardware address on the I2C bus
+    char addr = 0xc4;
     
-    // Configue Port - disable analog and configure for TX output
-    TRISCbits.TRISC6 = 0;   // pin 6 for output
-    ANSELCbits.ANSC6 = 0;
-
-    // Configure TX register
-    //
-    TXSTA = 0x24; // 2 for TXEN, 4 for BRGH (high baud rate)
-  
-    // Configue Port - disable analog and configure for RX output
-    //
-    TRISCbits.TRISC7 = 1;   // pin 7 for input
-    ANSELCbits.ANSC7 = 0;   // disable analog functions
+    // Get current LED status
+    char stat = ReadLEDStatus( addr, 1);
+    printf("Current R LED status: %x\n\r", stat);
     
-    // Configure RX register
-    //
-    RCSTA |= 0x90; // 9 for SPEN and CREN (receiver enable)
+    if( power==0 )
+        stat = ( (stat & 0xf3) + 0x4 );
+            // turn red led off, which is xx xx 01 xx
+    else{
+        stat = ( (stat & 0xf3) + 0x8 );
+            // use PWM setting 0, which is xx xx 10 xx
+        pwm = 0xff - pwm;
+    }
+    char instr[4] = { 0x02, pwm, 0x06, stat };
+    char n_instr = sizeof(instr)/sizeof(instr[0]);
     
-    // Set baud rate for 9600 by default
-    //
-    BAUDCON = 0x08; // use 16-bit baud rate generator
-    //SPBRGH = 832/256;
-    //SPBRGL = 832%256; // 9600
-    SPBRGH = 0; 
-    SPBRGL = 68; // 115200
-}
-
-
-void putch(char c){
-    while(!PIR1bits.TXIF){;}
-    TXREG = c;
-}
-
-
-int getch(void){
-    while(!PIR1bits.RCIF){}
-    return RC1REG;
-}
-
-
-int getche(void){
-    char c = getch();
-    putch(c);
-    return c;
+    printf("Addressing %x\n\r", addr );
+        
+    I2C_Master_Start();
+    char a = I2C_Master_Write( addr );
+    if( a != 0 ){
+        printf("Device not found at %x\n\r", addr);
+        return;
+    }
+        
+    for( char j=0; j<n_instr; j++){
+        char a = I2C_Master_Write( instr[j] );
+        printf("Writing data %x\n\r", instr[j] );
+        if( a!=0 ){
+            printf("%d-th Instruction of %x not acknowledged\n\r", j, instr[j] );
+        }
+    }
+        
+    I2C_Master_Stop();
 }
 
 #ifdef	__cplusplus

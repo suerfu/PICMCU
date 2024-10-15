@@ -37,8 +37,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "functions.h"
+#include "io.h"
+#include "clock.h"
+#include "uart.h"
 #include "mssp.h"
+
+#include "functions.h"
 
 #define _XTAL_FREQ 32000000
 
@@ -48,9 +52,20 @@ void main(void) {
     ConfigClock();
     ConfigUSART();
     ConfigI2C();
-    __delay_ms(100);
     
-    //char addr[] = {0xc2, 0xc4};
+    ConfigLED();
+    /*
+    char pwm = 0;
+    while(1){
+        printf("Configuring Red LED\n\r");
+        ConfigRLED( pwm, 1);
+        pwm++;
+        __delay_ms(100);
+    }
+     * */
+    
+    for(int i=0; i<10; i++)
+        __delay_ms(1000);
     char addr[] = {0xc4};
     char n_addr = sizeof(addr)/sizeof(addr[0]);
         // C does not support variable length array, even if length is declared with const keyword
@@ -78,7 +93,7 @@ void main(void) {
             if( a == 0 ){
                 for( char j=0; j<n_instr; j++){
                     char a = I2C_Master_Write( instr[j] );
-                    printf("Writing data %x\n\r", instr[j] );
+                    //printf("Writing data %x\n\r", instr[j] );
                     if( a!=0 ){
                         printf("%d-th Instruction of %x not acknowledged\n\r", j, instr[j] );
                     }
@@ -115,6 +130,6 @@ void main(void) {
 
 
     }
-    
+
     return;
 }
