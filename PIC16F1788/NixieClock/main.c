@@ -50,30 +50,35 @@ void main(void) {
     
     ConfigPort();
     ConfigClock();
-    ConfigUSART();
     ConfigI2C();
+    ConfigUSART();
+
+    __delay_ms(1);
+    printf("Configuring LED...\n\r");
+    //ConfigLED();
     
-    ConfigLED();
+
     /*
     char pwm = 0;
     while(1){
         printf("Configuring Red LED\n\r");
-        ConfigRLED( pwm, 1);
+//        ConfigRLED( pwm, 0);
         pwm++;
-        __delay_ms(100);
+        for(int i=0; i<30; i++)
+            __delay_ms(1000);
     }
-     * */
+    */
     
-    for(int i=0; i<10; i++)
-        __delay_ms(1000);
-    char addr[] = {0xc4};
+    
+    char addr[] = {0xc2, 0xc4};
     char n_addr = sizeof(addr)/sizeof(addr[0]);
-        // C does not support variable length array, even if length is declared with const keyword
-    
-    //char instr[] = {0x15, 0x55, 0x55};    // turn all LED off
-    char instr[] = {0x11, 0x0, 0xff, 0x0, 0x0, 0xaa, 0xaa };
-    //char instr[] = {0x05, 0x55, 0x06, 0x55, 0x05, 0x55, 0x06, 0x55};
-    char n_instr = sizeof(instr)/sizeof(instr[0]);
+
+    //char instr[] = {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x0b};
+    //char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x80}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x0b } };
+        // to PWM smallest value
+    char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x40}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x05 } };
+        // all LED off
+    char n_instr = sizeof(instr[0])/sizeof(instr[0][0]);
 
     printf("Welcome!\n\r");
     
@@ -81,8 +86,8 @@ void main(void) {
     
     while(1){
         
-        instr[2] = pwm;
-        pwm--;
+        //instr[2] = pwm;
+        //pwm--;
         
         for( char i=0; i<n_addr; i++){
             printf("Addressing %x\n\r", addr[i] );
@@ -92,10 +97,10 @@ void main(void) {
             
             if( a == 0 ){
                 for( char j=0; j<n_instr; j++){
-                    char a = I2C_Master_Write( instr[j] );
-                    //printf("Writing data %x\n\r", instr[j] );
+                    char a = I2C_Master_Write( instr[i][j] );
+                    printf("Writing data %x\n\r", instr[i][j] );
                     if( a!=0 ){
-                        printf("%d-th Instruction of %x not acknowledged\n\r", j, instr[j] );
+                        printf("%d-th Instruction of %x not acknowledged\n\r", j, instr[i][j] );
                     }
                 }
             }
@@ -107,29 +112,8 @@ void main(void) {
             
             __delay_ms(100);
         }
-/*
-            int a = I2CWrite( 0xc0+i, LED1, 2);
-            printf("Writing data to %x\n\r", 0xc0+i );
-            
-            switch(a){
-                case 0:
-                    printf("Data received\n\r");
-                    break;
-                case -1:
-                    printf("Device not found\n\r");
-                    break;
-                case -2:
-                    printf("Data not received\n\r");
-                    break;
-                default:
-                    printf("Unknown response %d received\n\r", a);
-                    break;
-            }
- * */            
-            
-
-
     }
+    
 
     return;
 }

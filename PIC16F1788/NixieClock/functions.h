@@ -19,8 +19,8 @@ extern "C" {
 //
 void ConfigLED(){    
     // hardware address on the I2C bus
-    char addr[] = {0xc2, 0xc4};
-    char n_addr = sizeof(addr)/sizeof(addr[0]);
+    char addr[2] = {0xc2, 0xc4};
+    char n_addr = 2;
     
     // common instructions to be carried out
     // set maximum blink rate on both rates
@@ -28,33 +28,29 @@ void ConfigLED(){
     // 1st driver should set 7th LED driver to use PWM0 -> 10, everything else 00 -> input to LED is high
     // 2st driver should set 5th to use PWM0 -> 10 and 4th LED driver to use PWM1 -> 11, everything else 00 -> input to LED is high
     char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x80}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x0b } };
-    char n_instr = sizeof(instr[0])/sizeof(instr[0][0]);
+    char n_instr = 7;
     
     for( char i=0; i<n_addr; i++){
         
         printf("Addressing %x\n\r", addr[i] );
         
         I2C_Master_Start();
-
         char a = I2C_Master_Write( addr[i] & 0xfe );
 
-        if( a != 0 ){
-            printf("Device not found at %x\n\r", addr[i]);
-            I2C_Master_Stop();
-            continue;
+        if( a==0 ){
+            printf("Device found\n\r");
+            
+            for( char j=0; j<n_instr; j++){
+                char a = I2C_Master_Write( instr[i][j] );
+                printf("Writing data %x\n\r", instr[i][j] );
+                if( a!=0 ){
+                    printf("%d-th instruction of %x not acknowledged\n\r", j, instr[j] );
+                }    
+            }
         }
         else{
-            printf("Device found\n\r");
+            printf("Device not found at %x\n\r", addr[i]);
         }
-        
-        for( char j=0; j<n_instr; j++){
-            char a = I2C_Master_Write( instr[i][j] );
-            printf("Writing data %x\n\r", instr[i][j] );
-            if( a!=0 ){
-                printf("%d-th instruction of %x not acknowledged\n\r", j, instr[j] );
-            }    
-        }
-        
         I2C_Master_Stop();
     }
 }
@@ -114,6 +110,7 @@ void ConfigRLED( char pwm, char power ){
     char a = I2C_Master_Write( addr );
     if( a != 0 ){
         printf("Device not found at %x\n\r", addr);
+        I2C_Master_Stop();
         return;
     }
         

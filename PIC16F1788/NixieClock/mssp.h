@@ -73,13 +73,19 @@ void I2C_Master_Stop(){
 char I2C_Master_Write( char d ){
     I2C_Master_Wait();
     SSPBUF = d;
-    
-    //if (PIR1bits.SSP1IF == 0){
-    //    printf("I2C_Master_Write: flag was not set.\n\r");
-    //    return SSPCON2bits.ACKSTAT;
-    //}
-    
-    while ( PIR1bits.SSP1IF==0 ){;}
+    /*
+    for( int i=0; i<40; i++){
+        if (PIR1bits.SSP1IF != 0){
+            printf("Flag set!\n\r");
+            break;
+        }
+        else{
+            printf("%d I2C_Master_Write: flag not set yet.\n\r", i);
+        }
+    }
+    return SSPCON2bits.ACKSTAT;
+    */
+    while ( !PIR1bits.SSP1IF ){;}
     PIR1bits.SSP1IF = 0;
         // wait for interrupt flag
         // this wait for finish flag is also essential for proper function (2024-10-15)
@@ -90,7 +96,7 @@ char I2C_Master_Read(){
     I2C_Master_Wait();
     SSPCON2bits.RCEN = 1;
     
-    if ( PIR1bits.SSP1IF == 0 ){
+    if ( !PIR1bits.SSP1IF ){
         return SSPBUF;
     }
     
