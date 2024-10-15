@@ -55,7 +55,12 @@ void main(void) {
 
     __delay_ms(1);
     printf("Configuring LED...\n\r");
-    //ConfigLED();
+    ConfigLED();
+    
+    while(1){
+        
+        __delay_ms(1000);
+    }
     
 
     /*
@@ -69,7 +74,7 @@ void main(void) {
     }
     */
     
-    
+    /*
     char addr[] = {0xc2, 0xc4};
     char n_addr = sizeof(addr)/sizeof(addr[0]);
 
@@ -110,10 +115,10 @@ void main(void) {
             
             I2C_Master_Stop();
             
-            __delay_ms(100);
+            //__delay_ms(100);
         }
     }
-    
+    */
 
     return;
 }
