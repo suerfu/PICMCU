@@ -58,7 +58,14 @@ void main(void) {
     ConfigLED();
     
     while(1){
-        
+        char a = ReadLEDStatus( 0xc2, 0 );
+        printf("%x\n\r", a);
+        a = ReadLEDStatus( 0xc2, 1 );
+        printf("%x\n\r", a);/*
+        a = ReadLEDStatus( 0xc4, 0 );
+        printf("%x\n\r", a);
+        a = ReadLEDStatus( 0xc4, 1 );
+        printf("%x\n\r", a);*/
         __delay_ms(1000);
     }
     
