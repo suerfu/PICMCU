@@ -12,7 +12,41 @@
 extern "C" {
 #endif
 
-// Configure port and bits for I2C
+
+
+// I2C
+//
+//  SSPCON1: WCOL | SSPOV | SSPEN | CKP | SSPM<3:0>
+//      WCOL: write collision, attempt to write SSPBUF while I2C line is not ready, need to be cleared manually
+//      SSPOV: receive overflow, byte is received while previous byte is still in the register
+//      SSPEN: synchronous serial port enable, 1 to enable either SPI or I2C
+//      CKP: clock parity selection, not used in I2C master mode
+//      SSPM<3:0>:
+//          1111 = I2C slave, 10-bit address, w/ start/stop bit interrupt
+//          1110 = I2C slave, 7-bit address, w/ start/stop bit interrupt
+//          1011 = I2C firmware controlled master
+//          1000 = I2C master mode, clock = Fosc / (4 * (SSPADD+1) )
+//          0111 = I2C slave, 10-bit
+//          0110 = I2C slave, 7-bit
+//      *SPI-related modes are omitted
+//
+//  SSPCON2: GCEN | ACKSTAT | ACKDT | ACKEN | RCEN | PEN | RSEN | SEN
+//      GCEN: general call enable, only used in I2C slave
+//      ACKSTAT: acknowledge status, read-only, 
+//          1 = ack not received, 0 = ack received
+//      ACKDT: acknowledge data in receive mode, value transmitted when acknowledge sequence initiated
+//          0 = received, 1 = not received
+//      ACKEN: enable acknowledge sequence (I2C master mode only)
+//          1 = initiate acknowledge sequence and transmit the value in ACKDT
+//      RCEN: 1 = enable receive mode in I2C master
+//      PEN: 1 = initiate stop condition in I2C master
+//      RSEN: 1 = enable repeated start condition in I2C master
+//      SEN: 1 = initiate start condition (I2C master)
+//
+//  SSPCON3: mostly used only in I2C mode except one bit to control data hold time
+//
+//  SSPADD: used to configure baud rate, which is set as freq = (Fosc/4) / (SSPADD+1)
+//      SSPADD = 0x4F to configure 100 kHz rate when Fosc = 32 MHz
 //
 void ConfigI2C(){
     
