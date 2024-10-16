@@ -57,7 +57,13 @@ void main(void) {
     InitializeLED();
     
     char curr[3] = {1, 1, 1};
-    char targ[3] = { rand()%156, rand()%156, rand()%156};
+    
+    char MAX_PWM = 65;
+    
+    char targ[3] = { 1, 1, 1};
+    for( int i=0; i<3; i++)
+        targ[i] = rand() % MAX_PWM;
+                
     char equal = 0;
     
     while(1){
@@ -77,12 +83,12 @@ void main(void) {
             SetLEDPWM( curr[0], curr[1], curr[2]);
             ConfigLED( 'r' );
             ConfigLED( 'b' );
-            __delay_ms(20);
+            __delay_ms(50);
         }
         printf("Color: %x %x %x\n\r", curr[0], curr[1], curr[2]);
         equal = 0;
         for( int i=0; i<3; i++)
-            targ[i] = rand() % 256;
+            targ[i] = rand() % MAX_PWM;
         
         /*
         char status[2];
