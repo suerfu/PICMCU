@@ -40,17 +40,15 @@ void ConfigI2C(){
 }
 
 
-void I2C_Master_Wait(){
-    while( (SSP1STAT & 0x01) || (SSP1CON2 & 0x1F) );
-    if (SSP1CON1bits.WCOL){
-        printf("Write collision has ocurred!\n\r");
-    }
-        // it seems this wait function is not very essential to the function
+void I2C_Idle(){
+    while( (SSP1STAT & 0x05) || (SSP1CON2 & 0x1F) );
+        // SSP1STAT bit 4 is R_nW, used to indicate transmission in progress
+        // this OR-ing is based on PIC MCU documentation SSPSTAT register description
 }
 
 
-void I2C_Master_Start(){
-    I2C_Master_Wait();
+void I2C_Start(){
+    I2C_Idle();
     SSPCON2bits.SEN = 1;
     while( SSPCON2bits.SEN ){;}
     PIR1bits.SSP1IF = 0;
@@ -60,53 +58,111 @@ void I2C_Master_Start(){
 }
 
 
-void I2C_Master_Stop(){
-    I2C_Master_Wait();
+void I2C_ReStart(){
+    I2C_Idle();
+    SSPCON2bits.RSEN = 1;
+    while( SSPCON2bits.RSEN ){;}
+    PIR1bits.SSP1IF = 0;
+        // SEN is cleared by hardware automatically
+        // SSP1IF needs to be cleared manually
+        // Both the two above lines are essential (2024-10-15)
+}
+
+void I2C_Stop(){
+    I2C_Idle();
     SSPCON2bits.PEN = 1;
     while( SSPCON2bits.PEN ){;}
     PIR1bits.SSP1IF = 0;
         // PEN is cleared by hardware automatically
         // SSP1IF needs to be cleared manually
+    char a = SSPBUF;
 }
 
 
-char I2C_Master_Write( char d ){
-    I2C_Master_Wait();
+// Write a single byte to I2C
+//
+char I2C_WriteByte( char d ){
+    I2C_Idle();
     SSPBUF = d;
-    /*
-    for( int i=0; i<40; i++){
-        if (PIR1bits.SSP1IF != 0){
-            printf("Flag set!\n\r");
-            break;
-        }
-        else{
-            printf("%d I2C_Master_Write: flag not set yet.\n\r", i);
-        }
-    }
-    return SSPCON2bits.ACKSTAT;
-    */
-    while ( !PIR1bits.SSP1IF ){;}
-    PIR1bits.SSP1IF = 0;
+    I2C_Idle();
+    //while ( !PIR1bits.SSP1IF ){;}
+    //PIR1bits.SSP1IF = 0;
         // wait for interrupt flag
         // this wait for finish flag is also essential for proper function (2024-10-15)
     return SSPCON2bits.ACKSTAT;
 }
 
-char I2C_Master_Read(){
-    I2C_Master_Wait();
+
+// Read a single byte from I2C
+// Assumes the I2C bus is already in the middle of a transaction and slave is sending data
+// Input ack => whether acknowledge receipt of data
+//
+char I2C_ReadByte( char ack ){
+    I2C_Idle();
     SSPCON2bits.RCEN = 1;
     
-    if ( !PIR1bits.SSP1IF ){
-        return SSPBUF;
-    }
-    
-    while ( !PIR1bits.SSP1IF ){;}
+    //while ( !PIR1bits.SSP1IF ){;}
         // wait for interrupt flag
         // this wait for finish flag is also essential for proper function (2024-10-15)
+    I2C_Idle();
+    
+    char tmp = SSPBUF;
+    
+    SSP1CON2bits.ACKDT = ack?0:1;
+    SSP1CON2bits.ACKEN = 1;
+    
     return SSPBUF;
 }
 
 
+// Write an entire sequence of data to address
+//
+char I2C_Write( char addr, char* data, char len){
+    
+    I2C_Start();
+    
+    char a = I2C_WriteByte( addr & 0xfe );
+    if( a!= 0){
+        printf("Error: device not found at address %x\n\r", addr);
+    }
+    else{
+        for( char j=0; j<len; j++){
+            char a = I2C_WriteByte( data[j] );
+            if( a!=0 ){
+                printf("I2C Write: %x not acknowledged by %x\n\r", data[j], addr );
+            }
+        }
+    }
+    
+    I2C_Stop();
+}
+
+
+char I2C_Read( char addr, char* wdata, char wlen, char* rdata, char rlen){
+    
+    I2C_Start();
+    
+    char a = I2C_WriteByte( addr & 0xfe );
+    if( a!= 0){
+        printf("Error: device not found at address %x\n\r", addr);
+    }
+    else{
+        for( char j=0; j<wlen; j++){
+            char a = I2C_WriteByte( wdata[j] );
+            if( a!=0 ){
+                printf("I2C Write: %x not acknowledged by %x\n\r", wdata[j], addr );
+            }
+        }
+    
+        I2C_ReStart();
+        I2C_WriteByte( addr | 0x1 );
+        for( char j=0; j<rlen; j++){
+            rdata[j] = I2C_ReadByte( j==rlen-1?0:1 );
+        }
+    }
+    
+    I2C_Stop();
+}
 
 #ifdef	__cplusplus
 }

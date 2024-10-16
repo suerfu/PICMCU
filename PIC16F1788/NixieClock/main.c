@@ -54,19 +54,26 @@ void main(void) {
     ConfigUSART();
 
     __delay_ms(1);
-    printf("Configuring LED...\n\r");
     ConfigLED();
     
+    char status[2];
+    
     while(1){
+        ReadLEDRegister( 0xc2, status);
+        printf("addr:0x%x %x %x\n\r", 0xc2, status[1], status[0]);
+        ReadLEDRegister( 0xc4, status);
+        printf("addr:0x%x %x %x\n\r", 0xc4, status[1], status[0]);
+        /*
         char a = ReadLEDStatus( 0xc2, 0 );
         printf("%x\n\r", a);
         a = ReadLEDStatus( 0xc2, 1 );
-        printf("%x\n\r", a);/*
+        printf("%x\n\r", a);
         a = ReadLEDStatus( 0xc4, 0 );
         printf("%x\n\r", a);
         a = ReadLEDStatus( 0xc4, 1 );
         printf("%x\n\r", a);*/
-        __delay_ms(1000);
+        for( int i=0; i<10; i++)
+            __delay_ms(1000);
     }
     
 

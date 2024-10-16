@@ -18,40 +18,25 @@ extern "C" {
 // Configure RGB LED - initial state
 //
 void ConfigLED(){    
-    // hardware address on the I2C bus
-    char addr[2] = {0xc2, 0xc4};
-    char n_addr = 2;
     
     // common instructions to be carried out
     // set maximum blink rate on both rates
     // set PWM on both rates to be MAX -> which is LED is off since LED is driven indirectly by MOSFET
     // 1st driver should set 7th LED driver to use PWM0 -> 10, everything else 00 -> input to LED is high
     // 2st driver should set 5th to use PWM0 -> 10 and 4th LED driver to use PWM1 -> 11, everything else 00 -> input to LED is high
-    char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x80}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x0b } };
-    char n_instr = 7;
+    
+    char addr[] = {0xc2, 0xc4};
+    char n_addr = sizeof(addr)/sizeof(addr[0]);
+
+    char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, /*0x80*/0x40}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, /*0x0b*/0x05 } };
+    char n_instr = sizeof(instr[0])/sizeof(instr[0][0]);
+        // default state all of them off
+
+    printf("Initializing RGB LEDs...\n\r");
     
     for( char i=0; i<n_addr; i++){
-        
         printf("Addressing %x\n\r", addr[i] );
-        
-        I2C_Master_Start();
-        char a = I2C_Master_Write( addr[i] & 0xfe );
-
-        if( a==0 ){
-            printf("Device found\n\r");
-            
-            for( char j=0; j<n_instr; j++){
-                char a = I2C_Master_Write( instr[i][j] );
-                printf("Writing data %x\n\r", instr[i][j] );
-                if( a!=0 ){
-                    printf("%d-th instruction of %x not acknowledged\n\r", j, instr[j] );
-                }    
-            }
-        }
-        else{
-            printf("Device not found at %x\n\r", addr[i]);
-        }
-        I2C_Master_Stop();
+        I2C_Write( addr[i], instr[i], n_instr);
     }
 }
 
@@ -59,29 +44,12 @@ void ConfigLED(){
 // Returns the current LED status hold in the LED driver chip
 // index = 0, returns the byte for lower half; = 1 for upper half
 //
-char ReadLEDStatus( char addr, char index ){
-    
-    I2C_Master_Start();
-    char a = I2C_Master_Write( addr | 0x1 );
-            
-    if( a != 0 ){
-        printf("Device not found at %x\n\r", addr | 0x1 );
-        I2C_Master_Stop();
-        return 0;
-    }
-    
-    a = I2C_Master_Write( 0x5 + index  );
-    if( a!=0 ){
-        printf( "Failed to read LED driver register %x\n\r", 0x5+index );
-    }
-
-    a = I2C_Master_Read();
-
-    I2C_Master_Stop();
-    
-    return a;
+void ReadLEDRegister( char addr, char* led ){
+    char cmd = 0x15;
+    I2C_Read( addr, &cmd, 1, led, 2 );
+    return;
 }
-
+/*
 // Configure RGB LED
 //
 void ConfigRLED( char pwm, char power ){
@@ -124,7 +92,7 @@ void ConfigRLED( char pwm, char power ){
         
     I2C_Master_Stop();
 }
-
+*/
 #ifdef	__cplusplus
 }
 #endif
