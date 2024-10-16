@@ -54,85 +54,46 @@ void main(void) {
     ConfigUSART();
 
     __delay_ms(1);
-    ConfigLED();
+    InitializeLED();
     
-    char status[2];
-    
-    while(1){
-        ReadLEDRegister( 0xc2, status);
-        printf("addr:0x%x %x %x\n\r", 0xc2, status[1], status[0]);
-        ReadLEDRegister( 0xc4, status);
-        printf("addr:0x%x %x %x\n\r", 0xc4, status[1], status[0]);
-        /*
-        char a = ReadLEDStatus( 0xc2, 0 );
-        printf("%x\n\r", a);
-        a = ReadLEDStatus( 0xc2, 1 );
-        printf("%x\n\r", a);
-        a = ReadLEDStatus( 0xc4, 0 );
-        printf("%x\n\r", a);
-        a = ReadLEDStatus( 0xc4, 1 );
-        printf("%x\n\r", a);*/
-        for( int i=0; i<10; i++)
-            __delay_ms(1000);
-    }
-    
-
-    /*
-    char pwm = 0;
-    while(1){
-        printf("Configuring Red LED\n\r");
-//        ConfigRLED( pwm, 0);
-        pwm++;
-        for(int i=0; i<30; i++)
-            __delay_ms(1000);
-    }
-    */
-    
-    /*
-    char addr[] = {0xc2, 0xc4};
-    char n_addr = sizeof(addr)/sizeof(addr[0]);
-
-    //char instr[] = {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x0b};
-    //char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x80}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x0b } };
-        // to PWM smallest value
-    char instr[2][7] = { {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x40}, {0x11, 0x0, 0xff, 0x0, 0xff, 0x00, 0x05 } };
-        // all LED off
-    char n_instr = sizeof(instr[0])/sizeof(instr[0][0]);
-
-    printf("Welcome!\n\r");
-    
-    char pwm = 0xff;
+    char curr[3] = {1, 1, 1};
+    char targ[3] = { rand()%156, rand()%156, rand()%156};
+    char equal = 0;
     
     while(1){
         
-        //instr[2] = pwm;
-        //pwm--;
+        while( equal<7 ){
         
-        for( char i=0; i<n_addr; i++){
-            printf("Addressing %x\n\r", addr[i] );
-            
-            I2C_Master_Start();
-            char a = I2C_Master_Write( addr[i] & 0xfe );
-            
-            if( a == 0 ){
-                for( char j=0; j<n_instr; j++){
-                    char a = I2C_Master_Write( instr[i][j] );
-                    printf("Writing data %x\n\r", instr[i][j] );
-                    if( a!=0 ){
-                        printf("%d-th Instruction of %x not acknowledged\n\r", j, instr[i][j] );
-                    }
+            for (int i=0; i<3; i++ ){
+                if( curr[i] < targ[i] )
+                    curr[i]++;
+                else if( curr[i]>targ[i])
+                    curr[i]--;
+                else{
+                    equal |= (0x1 << i);
                 }
             }
-            else{
-                printf("Device not found at %x\n\r", addr[i]);
-            }
-            
-            I2C_Master_Stop();
-            
-            //__delay_ms(100);
-        }
-    }
-    */
 
+            SetLEDPWM( curr[0], curr[1], curr[2]);
+            ConfigLED( 'r' );
+            ConfigLED( 'b' );
+            __delay_ms(20);
+        }
+        printf("Color: %x %x %x\n\r", curr[0], curr[1], curr[2]);
+        equal = 0;
+        for( int i=0; i<3; i++)
+            targ[i] = rand() % 256;
+        
+        /*
+        char status[2];
+        ReadLEDRegister( 0xc2, status);
+        printf("addr:0x%x %x %x\n\r", 0xc2, status[0], status[1]);
+        ReadLEDRegister( 0xc4, status);
+        printf("addr:0x%x %x %x\n\r", 0xc4, status[0], status[1]);
+        for( int i=0; i<10; i++)
+        */
+
+    }
+    
     return;
 }
