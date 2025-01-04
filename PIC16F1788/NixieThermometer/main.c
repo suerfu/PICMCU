@@ -1,13 +1,10 @@
 /* 
- * File:   main.c
- * Author: suerfu
- *
  * Created on December 27, 2022, 5:16 PM
  */
 
 // PIC16F1788 Configuration Bit Settings
 #pragma config FOSC = INTOSC    // Oscillator Selection (INTOSC oscillator: I/O function on CLKIN pin)
-#pragma config WDTE = OFF       // Watchdog Timer Enable (WDT disabled)
+#pragma config WDTE = 10       // Watchdog Timer Enable (WDT disabled)
 #pragma config PWRTE = OFF      // Power-up Timer Enable (PWRT disabled)
 #pragma config MCLRE = ON       // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
 #pragma config CP = OFF         // Flash Program Memory Code Protection (Program memory code protection is disabled)
@@ -37,8 +34,8 @@
  * Behavior:
  *  1. When first powered up, the device displays two columns corresponding to temperature and pressure for 3 minutes
  *  2. After 3 minutes, the device enters sleep mode
- *  3. When the front button is pressed, the device wakes again and displays T/H for another 3 minutes
- *  4. Sending command "?tmp" and "?hum", device will respond with current temperature and humidity in C and %. 
+ *  3. When the front button is pressed, the device wakes up again and displays T/H for another 3 minutes
+ *  4. Sending command "?tmp" and "?hum" via USB/serial port, device will respond with current temperature and humidity in C and %. 
  *  5. Sending command "!cal 1" causes the device to enter calibration mode.
  *  6. In calibration mode:
  * *    there is no time out
@@ -70,6 +67,7 @@ int main(int argc, char** argv) {
 
     ConfigPort(); 
     ConfigClock();
+    ConfigWDT();
     ConfigUSART();
     ConfigADC();  
     
@@ -161,6 +159,8 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        
+        CLRWDT();
     }
 
     return 0;
