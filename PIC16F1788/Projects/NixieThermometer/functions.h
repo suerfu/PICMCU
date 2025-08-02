@@ -1,7 +1,4 @@
 /* 
- * File:   functions.h
- * Author: suerfu
- *
  * Created on December 27, 2022, 5:15 PM
  */
 
@@ -64,6 +61,15 @@ void ConfigClock(){
     OSCCONbits.IRCF = 0xf; // 8 MHz internal clock, later PLL to 32 MHz
     while( (OSCSTAT & 0x58) != 0x58 ){;}
 }
+
+// Watchdog Timer
+// Set to 1 second
+// clear with CLRWDT()
+//
+void ConfigWDT(){
+    WDTCONbits.WDTPS = 0b01010; // 1s watchdog timer
+}
+
 
 // Timer 0 is an 8-bit timer that runs on instruction clock + optional pre-scalar
 /*
